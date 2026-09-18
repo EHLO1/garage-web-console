@@ -350,7 +350,7 @@ the marker with the deployment prefix and route unknown client paths to `index.h
 
 - [Node.js](https://nodejs.org/) 22.12+ and [pnpm](https://pnpm.io/) 11.19.0 (pinned automatically via
   corepack from the `packageManager` field in `package.json`)
-- [Go](https://go.dev/) 1.23+
+- [Go](https://go.dev/) 1.27.1+
 - [air](https://github.com/air-verse/air) for backend hot-reload during local (non-Docker) dev:
   `go install github.com/air-verse/air@latest`
 
@@ -405,6 +405,39 @@ The browser-test host copies `dist/` to the ignored `backend/ui/dist/` directory
 After that, run `go test -tags=prod ./ui` from `backend/` to check embedded assets
 and runtime base-path rewriting separately. `go test ./...` checks the regular
 backend packages.
+
+### Backend toolchain and dependencies
+
+The Go module and Docker builder target **Go 1.27.1**. Direct dependencies and
+transitive dependencies used by the application were updated to their latest
+stable releases on September 17, 2026. `godotenv` and `nfnt/resize` retain their
+existing versions because those are still their latest published releases.
+
+The S3 client uses the AWS SDK's `BaseEndpoint` API with path-style bucket URLs.
+Optional AWS checksum calculation and validation are set to `WhenRequired` to
+preserve Garage compatibility; required operation checksums remain enabled.
+HTTP/HTTPS integration tests cover signing, reserved object-key characters,
+uploads, empty folder markers, downloads, and bulk deletes. Authentication tests
+exercise bcrypt, persistent password changes, and SCS session cookies through
+the real API handlers.
+
+From `backend/`:
+
+```sh
+go test ./...
+go vet ./...
+go mod verify
+go mod tidy -diff
+go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+# After the frontend assets have been copied into ui/dist:
+go test -tags=prod ./...
+go vet -tags=prod ./...
+```
+
+`go list -m -u all` also lists optional modules declared by upstream dependencies
+that are not imported into this application. Go's module pruning leaves those
+at the upstream-declared versions; `go mod why -m <module>` distinguishes these
+from dependencies used by the backend.
 
 ### Running the fork locally with Docker
 

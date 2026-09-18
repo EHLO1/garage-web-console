@@ -514,27 +514,24 @@ func getS3Client(bucket string) (*s3.Client, error) {
 		return nil, fmt.Errorf("cannot get credentials for bucket %s: %w", bucket, err)
 	}
 
-	// Determine endpoint and whether to disable HTTPS
-	endpoint := utils.Garage.GetS3Endpoint()
-	disableHTTPS := !strings.HasPrefix(endpoint, "https://")
+	return newS3Client(utils.Garage.GetS3Endpoint(), utils.Garage.GetS3Region(), creds), nil
+}
 
-	// AWS config without BaseEndpoint
+func newS3Client(endpoint, region string, creds aws.CredentialsProvider) *s3.Client {
 	awsConfig := aws.Config{
 		Credentials: creds,
-		Region:      utils.Garage.GetS3Region(),
+		Region:      region,
 	}
 
-	// Build S3 client with custom endpoint resolver for proper signing
-	client := s3.NewFromConfig(awsConfig, func(o *s3.Options) {
+	return s3.NewFromConfig(awsConfig, func(o *s3.Options) {
+		// Use the SDK's current resolver while keeping Garage's custom endpoint
+		// and path-style bucket URLs. The endpoint URL supplies HTTP or HTTPS.
+		o.BaseEndpoint = aws.String(endpoint)
 		o.UsePathStyle = true
-		o.EndpointOptions.DisableHTTPS = disableHTTPS
-		o.EndpointResolver = s3.EndpointResolverFunc(func(region string, opts s3.EndpointResolverOptions) (aws.Endpoint, error) {
-			return aws.Endpoint{
-				URL:           endpoint,
-				SigningRegion: utils.Garage.GetS3Region(),
-			}, nil
-		})
+		// Newer SDKs default to optional AWS checksum trailers. Keep the
+		// existing Garage wire format, while retaining required checksums
+		// (for example for DeleteObjects) and explicitly requested checksums.
+		o.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
+		o.ResponseChecksumValidation = aws.ResponseChecksumValidationWhenRequired
 	})
-
-	return client, nil
 }
