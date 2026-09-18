@@ -1,6 +1,10 @@
-import { cpSync } from 'node:fs';
+import { cpSync, rmSync } from 'node:fs';
 import { spawn } from 'node:child_process';
-cpSync('dist', 'backend/ui/dist', { recursive: true });
+const embeddedAssets = new URL('../backend/ui/dist/', import.meta.url);
+rmSync(embeddedAssets, { recursive: true, force: true });
+cpSync(new URL('../dist/', import.meta.url), embeddedAssets, {
+  recursive: true
+});
 const server = spawn('go', ['run', '-tags=prod', '../tests/serve-ui.go'], {
   cwd: 'backend',
   stdio: 'inherit',

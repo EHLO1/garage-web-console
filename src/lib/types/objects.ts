@@ -1,9 +1,3 @@
-export type UseBrowserObjectOptions = Partial<{
-  prefix: string;
-  limit: number;
-  next: string;
-}>;
-
 export type GetObjectsResult = {
   prefixes: string[];
   objects: Object[];
@@ -16,9 +10,4 @@ export type Object = {
   lastModified: Date;
   size: number;
   url: string;
-};
-
-export type PutObjectPayload = {
-  key: string;
-  file: File | null;
 };

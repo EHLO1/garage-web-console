@@ -1,5 +1,3 @@
-//
-
 export type GetNodeInfoResult = {
   success: {
     [key: string]: {
@@ -57,16 +55,4 @@ export type GetClusterLayoutResult = {
   version: number;
   roles: Role[];
   stagedRoleChanges: StagedRole[];
-};
-
-export type AssignNodeBody = {
-  id: string;
-  zone: string;
-  capacity: number | null;
-  tags: string[];
-};
-
-export type ApplyLayoutResult = {
-  message: string[];
-  layout: GetClusterLayoutResult;
 };

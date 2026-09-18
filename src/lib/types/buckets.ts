@@ -1,7 +1,3 @@
-//
-
-export type GetBucketRes = Bucket[];
-
 export type Bucket = {
   id: string;
   globalAliases: string[];
