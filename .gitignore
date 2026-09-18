@@ -31,3 +31,10 @@ docker-compose.*.yml
 data/
 meta/
 garage.toml
+
+.svelte-kit/
+!src/routes/(app)/logs/
+
+test-results/
+playwright-report/
+.pnpm-store/

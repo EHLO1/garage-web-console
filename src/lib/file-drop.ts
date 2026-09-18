@@ -26,7 +26,7 @@ export async function readDataTransferItems(
 
   const results: DroppedItem[] = [];
   for (const entry of entries) {
-    await traverseEntry(entry, "", results);
+    await traverseEntry(entry, '', results);
   }
   return results;
 }
@@ -46,7 +46,7 @@ function traverseEntry(
     }
 
     if (entry.isDirectory) {
-      const dirPath = prefix + entry.name + "/";
+      const dirPath = prefix + entry.name + '/';
       out.push({ path: dirPath, file: null });
 
       const reader = entry.createReader();
@@ -58,10 +58,14 @@ function traverseEntry(
             resolve();
             return;
           }
-          for (const child of batch) {
-            await traverseEntry(child, dirPath, out);
+          try {
+            for (const child of batch) {
+              await traverseEntry(child, dirPath, out);
+            }
+            readBatch();
+          } catch (error) {
+            reject(error);
           }
-          readBatch();
         }, reject);
       };
       readBatch();

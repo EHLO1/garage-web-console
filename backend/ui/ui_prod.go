@@ -9,11 +9,10 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"regexp"
 	"strings"
 )
 
-//go:embed dist
+//go:embed all:dist
 var embeddedFs embed.FS
 
 func ServeUI(mux *http.ServeMux) {
@@ -24,14 +23,17 @@ func ServeUI(mux *http.ServeMux) {
 	mux.Handle(basePath+"/", http.StripPrefix(basePath, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_path := path.Clean(r.URL.Path)[1:]
 
-		// Rewrite non-existing paths to index.html
-		if _, err := fs.Stat(distFs, _path); err != nil {
+		// Serve the SvelteKit SPA fallback for client routes and the root.
+		_, statErr := fs.Stat(distFs, _path)
+		if statErr != nil && strings.HasPrefix(_path, "_app/") {
+			http.NotFound(w, r)
+			return
+		}
+		if _path == "" || _path == "index.html" || statErr != nil {
 			index, _ := fs.ReadFile(distFs, "index.html")
 			html := string(index)
 
-			// Set base path for the UI
-			html = strings.ReplaceAll(html, "%BASE_PATH%", basePath)
-			html = addBasePath(html, basePath)
+			html = replaceBasePath(html, basePath)
 
 			w.Header().Add("Content-Type", "text/html")
 			w.WriteHeader(http.StatusOK)
@@ -39,13 +41,17 @@ func ServeUI(mux *http.ServeMux) {
 			return
 		}
 
-		// Add prefix to each /assets strings in js
-		if len(basePath) > 0 && strings.HasSuffix(_path, ".js") {
+		// SvelteKit embeds its build-time base in generated JS and CSS.
+		// Substitute the marker even when serving from the origin root.
+		if strings.HasSuffix(_path, ".js") || strings.HasSuffix(_path, ".css") {
 			data, _ := fs.ReadFile(distFs, _path)
 			html := string(data)
-			html = strings.ReplaceAll(html, "assets/", basePath[1:]+"/assets/")
+			html = replaceBasePath(html, basePath)
 
 			w.Header().Add("Content-Type", "text/javascript")
+			if strings.HasSuffix(_path, ".css") {
+				w.Header().Set("Content-Type", "text/css")
+			}
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(html))
 			return
@@ -55,9 +61,6 @@ func ServeUI(mux *http.ServeMux) {
 	})))
 }
 
-func addBasePath(html string, basePath string) string {
-	re := regexp.MustCompile(`(href|src)=["'](/[^"'>]+)["']`)
-	return re.ReplaceAllStringFunc(html, func(match string) string {
-		return re.ReplaceAllString(match, `$1="`+basePath+`$2"`)
-	})
+func replaceBasePath(content string, basePath string) string {
+	return strings.ReplaceAll(content, "/__garage_base__", basePath)
 }

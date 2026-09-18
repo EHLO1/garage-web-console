@@ -1,25 +1,33 @@
-import { defineConfig, loadEnv } from "vite";
-import react from "@vitejs/plugin-react-swc";
-import path from "path";
-
-// https://vitejs.dev/config/
+import adapter from '@sveltejs/adapter-static';
+import { sveltekit } from '@sveltejs/kit/vite';
+import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
+import { defineConfig, loadEnv } from 'vite';
 export default defineConfig(({ mode }) => {
-  process.env = { ...process.env, ...loadEnv(mode, process.cwd()) };
-
+  const env = loadEnv(mode, process.cwd());
   return {
-    plugins: [react()],
-    resolve: {
-      alias: {
-        "@": path.resolve(__dirname, "src"),
-      },
-    },
+    plugins: [
+      sveltekit({
+        preprocess: vitePreprocess(),
+        adapter: adapter({
+          pages: 'dist',
+          assets: 'dist',
+          fallback: 'index.html'
+        }),
+        files: { assets: 'public' },
+        // Go replaces this marker at runtime; the same binary supports any BASE_PATH.
+        paths: {
+          base: process.env.NODE_ENV === 'production' ? '/__garage_base__' : '',
+          relative: false
+        }
+      })
+    ],
     server: {
       proxy: {
-        "/api": {
-          target: process.env.VITE_API_URL,
-          changeOrigin: true,
-        },
-      },
-    },
+        '/api': {
+          target: env.VITE_API_URL || 'http://localhost:3909',
+          changeOrigin: true
+        }
+      }
+    }
   };
 });

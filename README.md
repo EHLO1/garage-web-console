@@ -1,4 +1,4 @@
-# Garage Web COnsole
+# Garage Web Console
 
 [![image](misc/img/login-dashboard.png)](misc/img/login-dashboard.png)
 
@@ -6,7 +6,7 @@ A simple admin web UI for [Garage](https://garagehq.deuxfleurs.fr/), a self-host
 
 [ [Screenshots](misc/SCREENSHOTS.md) | [Install Garage](https://garagehq.deuxfleurs.fr/documentation/quick-start/) | [Garage Git](https://git.deuxfleurs.fr/Deuxfleurs/garage) ]
 
-> Copied, then heavily retrofitted from: 
+> Copied, then heavily retrofitted from:
 > [khairul169/garage-webui](https://github.com/khairul169/garage-webui)
 > [genebit/s3-garagehq-webui](https://github.com/genebit/s3-garagehq-webui)
 
@@ -44,18 +44,19 @@ A simple admin web UI for [Garage](https://garagehq.deuxfleurs.fr/), a self-host
 
 **UI** _(redesigned in this fork)_
 
-- Rebuilt on [shadcn/ui](https://ui.shadcn.com/) + Radix primitives (previously DaisyUI)
+- Svelte 5 components retaining the original [shadcn](https://www.shadcn-svelte.com/) design,
+  with [Bits UI](https://bits-ui.com/) accessible dialog primitives and the existing Tailwind theme tokens
 - Simplified to **light/dark mode** only (previously a multi-theme picker)
 
 ## Screenshots
 
 More in [misc/SCREENSHOTS.md](misc/SCREENSHOTS.md).
 
-|                                                                                    |                                                                                  |
-| ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+|                                                                                                                                                                                      |                                                                                                                                          |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | [![Login and dashboard](misc/img/login-dashboard.png)](misc/img/login-dashboard.png) <br> Login (password + Google sign-in) and the cluster health dashboard, in light and dark mode | [![Cluster and access keys](misc/img/clusters-keys.png)](misc/img/clusters-keys.png) <br> Cluster node details and access key management |
-| [![Bucket and object management](misc/img/object-mgt.png)](misc/img/object-mgt.png) <br> Buckets, multi-select bulk actions, and the background upload progress panel | [![User management](misc/img/user-mgt.png)](misc/img/user-mgt.png) <br> Managing users, roles, and Google-linked accounts |
-| [![Audit logs](misc/img/logs.png)](misc/img/logs.png) <br> Searchable, filterable audit log with expandable request details | |
+| [![Bucket and object management](misc/img/object-mgt.png)](misc/img/object-mgt.png) <br> Buckets, multi-select bulk actions, and the background upload progress panel                | [![User management](misc/img/user-mgt.png)](misc/img/user-mgt.png) <br> Managing users, roles, and Google-linked accounts                |
+| [![Audit logs](misc/img/logs.png)](misc/img/logs.png) <br> Searchable, filterable audit log with expandable request details                                                          |                                                                                                                                          |
 
 ## Installation
 
@@ -103,8 +104,8 @@ services:
     ports:
       - 3909:3909
     environment:
-      API_BASE_URL: "http://garage:3903"
-      S3_ENDPOINT_URL: "http://garage:3900"
+      API_BASE_URL: 'http://garage:3903'
+      S3_ENDPOINT_URL: 'http://garage:3900'
 
 volumes:
   webui-data:
@@ -199,22 +200,22 @@ However, if it fails to load, you can set `API_BASE_URL` & `API_ADMIN_KEY` envir
 
 Configurable envs:
 
-| Variable | Default | Description |
-| --- | --- | --- |
-| `CONFIG_PATH` | `/etc/garage.toml` | Path to the Garage `config.toml` file. |
-| `BASE_PATH` | _(none)_ | Base path or prefix for the Web UI. |
-| `API_BASE_URL` | _(from config)_ | Garage admin API endpoint URL. |
-| `API_ADMIN_KEY` | _(from config)_ | Garage admin API key. |
-| `S3_REGION` | `garage` | S3 region. |
-| `S3_ENDPOINT_URL` | _(from config)_ | S3 endpoint URL. |
-| `HOST` | `0.0.0.0` | Address the server listens on. |
-| `PORT` | `3909` | Port the server listens on. |
-| `AUTH_USER_PASS` | _(none)_ | Legacy single-user login, `username:bcrypt_hash`. Only used while no users are registered — see [Access Control](#access-control-users--roles). |
-| `USERS_PATH` | `/data/users.json` | Where the multi-user account store is persisted. |
-| `LOGS_PATH` | `/data/logs/app.log` | Where the audit log file is persisted. |
-| `TMPDIR` | `/data/tmp` | Temp directory used while streaming large object uploads to disk. |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | _(none)_ | Enables Google sign-in when both are set — see [Google sign-in](#google-sign-in-optional). |
-| `GOOGLE_ALLOWED_DOMAINS` | `gbox.adnu.edu.ph,adnu.edu.ph` | Comma-separated hosted-domain allowlist for Google sign-in. |
+| Variable                                    | Default                        | Description                                                                                                                                     |
+| ------------------------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CONFIG_PATH`                               | `/etc/garage.toml`             | Path to the Garage `config.toml` file.                                                                                                          |
+| `BASE_PATH`                                 | _(none)_                       | Base path or prefix for the Web UI.                                                                                                             |
+| `API_BASE_URL`                              | _(from config)_                | Garage admin API endpoint URL.                                                                                                                  |
+| `API_ADMIN_KEY`                             | _(from config)_                | Garage admin API key.                                                                                                                           |
+| `S3_REGION`                                 | `garage`                       | S3 region.                                                                                                                                      |
+| `S3_ENDPOINT_URL`                           | _(from config)_                | S3 endpoint URL.                                                                                                                                |
+| `HOST`                                      | `0.0.0.0`                      | Address the server listens on.                                                                                                                  |
+| `PORT`                                      | `3909`                         | Port the server listens on.                                                                                                                     |
+| `AUTH_USER_PASS`                            | _(none)_                       | Legacy single-user login, `username:bcrypt_hash`. Only used while no users are registered — see [Access Control](#access-control-users--roles). |
+| `USERS_PATH`                                | `/data/users.json`             | Where the multi-user account store is persisted.                                                                                                |
+| `LOGS_PATH`                                 | `/data/logs/app.log`           | Where the audit log file is persisted.                                                                                                          |
+| `TMPDIR`                                    | `/data/tmp`                    | Temp directory used while streaming large object uploads to disk.                                                                               |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | _(none)_                       | Enables Google sign-in when both are set — see [Google sign-in](#google-sign-in-optional).                                                      |
+| `GOOGLE_ALLOWED_DOMAINS`                    | `gbox.adnu.edu.ph,adnu.edu.ph` | Comma-separated hosted-domain allowlist for Google sign-in.                                                                                     |
 
 `USERS_PATH`, `LOGS_PATH`, and `TMPDIR` all default under `/data`, so make sure that directory is a
 writable, persistent volume (see the `webui-data` volume in the Docker Compose example above).
@@ -329,11 +330,25 @@ Once your instance of Garage Web UI is started, you can open the web UI at http:
 
 ## Development
 
-This project is bootstrapped using TypeScript & React for the UI, and Go for the backend.
+The frontend is a client-rendered **SvelteKit 3 SPA** using Svelte 5 and TypeScript.
+SvelteKit is pinned to `3.0.0-next.27` (the latest `next` prerelease verified on
+September 16, 2026), with `@sveltejs/adapter-static` `4.0.0-next.4`.
+The Go backend owns all API endpoints, authentication, authorization, and storage access.
+
+SSR and prerendering are disabled in `src/routes/+layout.ts`. The static adapter
+outputs `dist/index.html` and browser assets; production requires **no Node server**.
+The existing Docker build embeds this directory in the Go binary. SvelteKit 3
+configuration lives in `vite.config.ts`, with `#lib/*` and `#src/*` package imports.
+
+`BASE_PATH` remains a runtime setting: Go substitutes the build marker
+`/__garage_base__` in HTML, JavaScript, and CSS. This allows the same binary to
+serve `/`, `/console`, or another path without rebuilding. Go's `all:dist` embed
+pattern includes SvelteKit's `_app` assets. For a standalone static host, replace
+the marker with the deployment prefix and route unknown client paths to `index.html`.
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) 22+ and [pnpm](https://pnpm.io/) (pinned automatically via
+- [Node.js](https://nodejs.org/) 22.12+ and [pnpm](https://pnpm.io/) 11.19.0 (pinned automatically via
   corepack from the `packageManager` field in `package.json`)
 - [Go](https://go.dev/) 1.23+
 - [air](https://github.com/air-verse/air) for backend hot-reload during local (non-Docker) dev:
@@ -367,6 +382,29 @@ $ cd backend && air     # Go backend with hot reload
 
 The Vite dev server proxies `/api` requests to the Go backend — set `VITE_API_URL` in a `.env`
 file if the backend isn't on the default `http://localhost:3909`.
+
+### Frontend validation
+
+```sh
+pnpm check       # Svelte and TypeScript diagnostics
+pnpm lint
+pnpm test        # Object paths, directory drops, and upload queue tests
+pnpm build      # Static SPA in dist/
+pnpm exec playwright install chromium
+pnpm test:e2e   # Builds the SPA, then tests it through the production Go UI handler
+```
+
+Browser tests require Go. They use isolated mock API responses and exercise the
+real compiled frontend and Go asset handler at `/`, `/console`, and `/tools/garage`.
+They cover setup/login, role restrictions, users, keys, cluster layout, bucket
+settings, object operations, uploads, logs, themes, and mobile navigation. They do
+not require or mutate a live Garage instance. To use an installed Chrome instead
+of downloading Chromium, set `PLAYWRIGHT_CHANNEL=chrome`.
+
+The browser-test host copies `dist/` to the ignored `backend/ui/dist/` directory.
+After that, run `go test -tags=prod ./ui` from `backend/` to check embedded assets
+and runtime base-path rewriting separately. `go test ./...` checks the regular
+backend packages.
 
 ### Running the fork locally with Docker
 
