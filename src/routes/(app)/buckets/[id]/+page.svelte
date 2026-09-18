@@ -14,9 +14,7 @@
   const bucket = resource(() =>
     api.get<Bucket>('/v2/GetBucketInfo', { params: { id } })
   );
-  let manager = $derived(
-    $auth?.user?.role === 'owner' || $auth?.user?.role === 'admin'
-  );
+  let manager = $derived($auth?.user?.role === 'admin');
   let tab = $derived(page.url.searchParams.get('tab') || 'browse');
   function selectTab(value: string) {
     const next = new URL(page.url.href);
@@ -54,14 +52,14 @@
   {#key id}
     {#if tab === 'overview'}<BucketOverview
         bucket={bucket.data}
-        {manager}
+        manager={$auth?.user?.role === 'admin' || $auth?.user?.role === 'user'}
         reload={bucket.reload}
       />
     {:else if tab === 'permissions' && manager}<BucketPermissions
         bucket={bucket.data}
         reload={bucket.reload}
       />
-    {:else if bucket.data.globalAliases?.length && bucket.data.keys?.some((key) => key.permissions.read && key.permissions.write)}<ObjectBrowser
+    {:else if bucket.data.globalAliases?.length && bucket.data.browseAvailable}<ObjectBrowser
         bucket={bucket.data}
         reloadBucket={bucket.reload}
       />

@@ -90,13 +90,13 @@ func TestOIDCFlow(t *testing.T) {
 	}))
 	defer provider.Close()
 	issuer = provider.URL
-	for k, v := range map[string]string{"OIDC_ISSUER": issuer, "OIDC_CLIENT_ID": "console-client", "OIDC_CLIENT_SECRET": "client-secret", "OIDC_REDIRECT_URL": "https://console.example/console/api/v1/auth/oidc/callback", "OIDC_REQUIRE_VERIFIED_EMAIL": "true", "OIDC_ALLOWED_DOMAINS": "", "OIDC_SCOPES": "email profile", "BASE_PATH": "/console", "USERS_PATH": filepath.Join(t.TempDir(), "users.json"), "AUTH_USER_PASS": "", "OIDC_BUTTON_TEXT": "Sign in with Pocket ID", "OIDC_BUTTON_ICON_URL": "https://id.example/icon.svg"} {
+	for k, v := range map[string]string{"OIDC_ISSUER": issuer, "OIDC_CLIENT_ID": "console-client", "OIDC_CLIENT_SECRET": "client-secret", "OIDC_REDIRECT_URL": "https://console.example/console/api/v1/auth/oidc/callback", "OIDC_REQUIRE_VERIFIED_EMAIL": "true", "OIDC_ALLOWED_DOMAINS": "", "OIDC_SCOPES": "email profile", "BASE_PATH": "/console", "USERS_PATH": filepath.Join(t.TempDir(), "users.json"), "OIDC_BUTTON_TEXT": "Sign in with Pocket ID", "OIDC_BUTTON_ICON_URL": "https://id.example/icon.svg"} {
 		t.Setenv(k, v)
 	}
 	previousUsers, previousSession := utils.Users, utils.Session
 	t.Cleanup(func() { utils.Users, utils.Session = previousUsers, previousSession })
 	utils.InitUserStore()
-	_, err = utils.Users.Create(schema.User{Username: "owner", Email: "owner@example.com", Role: schema.RoleOwner})
+	_, err = utils.Users.Create(schema.User{Username: "owner", Email: "owner@example.com", Role: schema.RoleAdmin})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -31,7 +31,9 @@ func main() {
 	}
 
 	utils.InitCacheManager()
-	utils.InitUserStore()
+	if err := utils.InitUserStore(); err != nil {
+		log.Fatal("Cannot load user store: ", err)
+	}
 	sessionMgr := utils.InitSessionManager()
 
 	if err := utils.Garage.LoadConfig(); err != nil {

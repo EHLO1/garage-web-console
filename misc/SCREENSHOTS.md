@@ -23,7 +23,7 @@ drag-and-drop uploads.
 
 ### User Management
 
-Owner/admin/developer roles, per-developer bucket assignment, and linking an account to OIDC
+Admin/user/viewer roles, explicit bucket assignment, and linking an account to OIDC
 sign-in by email.
 
 [![image](img/user-mgt.png)](img/user-mgt.png)

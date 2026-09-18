@@ -36,6 +36,7 @@ func HandleApiRouter() *http.ServeMux {
 
 	buckets := &Buckets{}
 	router.HandleFunc("GET /buckets", buckets.GetAll)
+	router.HandleFunc("GET /v2/GetBucketInfo", buckets.GetOne)
 
 	browse := &Browse{}
 	router.HandleFunc("GET /browse/{bucket}", browse.GetObjects)

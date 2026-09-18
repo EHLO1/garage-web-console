@@ -16,7 +16,7 @@ async function mockAPI(
   const calls: Call[] = [];
   let authenticated = options.authenticated ?? true;
   let setup = options.setup ?? false;
-  const role = options.role || 'owner';
+  const role = options.role || 'admin';
   const user = {
     id: 'owner-1',
     username: 'joseph',
@@ -29,6 +29,7 @@ async function mockAPI(
     {
       id: 'bucket-1',
       globalAliases: ['photos'],
+      browseAvailable: true,
       localAliases: [],
       keys: [
         {
@@ -108,10 +109,7 @@ async function mockAPI(
     else if (path === '/users')
       result =
         request.method() === 'GET'
-          ? [
-              user,
-              { ...user, id: 'dev-1', username: 'developer', role: 'developer' }
-            ]
+          ? [user, { ...user, id: 'dev-1', username: 'member', role: 'user' }]
           : { id: 'new-user', ...body };
     else if (path.startsWith('/users/')) result = true;
     else if (path === '/v2/ListKeys')
@@ -299,18 +297,18 @@ test('first-run registration validates password confirmation', async ({
   await page.getByLabel('Username').fill('first-owner');
   await page.getByLabel('Password', { exact: true }).fill('secret123');
   await page.getByLabel('Confirm password').fill('different');
-  await page.getByRole('button', { name: 'Create owner account' }).click();
+  await page.getByRole('button', { name: 'Create admin account' }).click();
   await expect(page.getByRole('alert')).toHaveText('Passwords do not match');
   expect(calls.filter((call) => call.path === '/auth/register')).toHaveLength(
     0
   );
   await page.getByLabel('Confirm password').fill('secret123');
-  await page.getByRole('button', { name: 'Create owner account' }).click();
+  await page.getByRole('button', { name: 'Create admin account' }).click();
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 });
 
-test('developer routes and requests remain scoped', async ({ page }) => {
-  const { calls } = await mockAPI(page, '', { role: 'developer' });
+test('user routes and requests remain scoped', async ({ page }) => {
+  const { calls } = await mockAPI(page, '', { role: 'user' });
   await page.goto('/users');
   await expect(
     page.getByRole('heading', { name: 'Buckets', exact: true })
@@ -319,11 +317,8 @@ test('developer routes and requests remain scoped', async ({ page }) => {
     0
   );
   const nav = page.getByRole('navigation', { name: 'Main navigation' });
-  for (const name of ['Users', 'Logs', 'Cluster'])
+  for (const name of ['Users', 'Logs', 'Cluster', 'Access Keys'])
     await expect(nav.getByRole('link', { name, exact: true })).toHaveCount(0);
-  await nav.getByRole('link', { name: 'Access Keys' }).click();
-  await expect(page.getByText('App key', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Create key' })).toHaveCount(0);
   await page.goto('/buckets/bucket-1');
   await expect(
     page.getByRole('region', { name: 'Object browser' })
@@ -425,7 +420,7 @@ test('user editing preserves bucket IDs and sends PATCH', async ({ page }) => {
   await page.goto('/users');
   await page
     .getByRole('row')
-    .filter({ hasText: 'developer' })
+    .filter({ hasText: 'member' })
     .getByRole('button', { name: 'Edit', exact: true })
     .click();
   await page.getByLabel('Username', { exact: true }).fill('updated-dev');
@@ -438,7 +433,7 @@ test('user editing preserves bucket IDs and sends PATCH', async ({ page }) => {
   ).toEqual({
     username: 'updated-dev',
     email: 'joseph@example.com',
-    role: 'developer',
+    role: 'user',
     buckets: ['bucket-1']
   });
 });
@@ -696,4 +691,78 @@ test('login-05 respects both themes and fits mobile screens', async ({
     path: testInfo.outputPath('login-mobile.png'),
     fullPage: true
   });
+});
+
+test('viewers can browse and download but cannot change buckets or objects', async ({
+  page
+}) => {
+  const { calls } = await mockAPI(page, '', { role: 'viewer' });
+  await page.goto('/buckets/bucket-1');
+  await expect(
+    page.getByRole('region', { name: 'Object browser' })
+  ).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: /^Download / }).first()
+  ).toBeVisible();
+  for (const name of [
+    'New folder',
+    'Upload files',
+    'Upload folder',
+    'Move',
+    'Delete'
+  ])
+    await expect(page.getByRole('button', { name, exact: true })).toHaveCount(
+      0
+    );
+  await page.getByLabel('Select all objects').check();
+  await expect(
+    page.getByRole('button', { name: 'Move', exact: true })
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Delete', exact: true })
+  ).toHaveCount(0);
+  await page.getByRole('button', { name: 'overview', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Bucket information' })
+  ).toBeVisible();
+  for (const name of ['Add alias', 'Edit quotas', 'Configure', 'Delete bucket'])
+    await expect(page.getByRole('button', { name, exact: true })).toHaveCount(
+      0
+    );
+  await page.goto('/keys');
+  await expect(
+    page.getByRole('heading', { name: 'Buckets', exact: true })
+  ).toBeVisible();
+  expect(calls.some((call) => call.method !== 'GET')).toBe(false);
+  expect(
+    calls.some((call) =>
+      ['/config', '/v2/ListKeys', '/v2/GetKeyInfo'].includes(call.path)
+    )
+  ).toBe(false);
+});
+
+test('users can edit assigned bucket settings while keys remain admin-only', async ({
+  page
+}) => {
+  const { calls } = await mockAPI(page, '', { role: 'user' });
+  await page.goto('/buckets/bucket-1?tab=overview');
+  await page.getByRole('button', { name: 'Edit quotas' }).click();
+  await page.getByLabel('Maximum objects').fill('100');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect(
+    calls.some(
+      (call) =>
+        call.path === '/v2/UpdateBucket' &&
+        call.query.get('id') === 'bucket-1' &&
+        call.body.quotas.maxObjects === 100
+    )
+  ).toBe(true);
+  await expect(
+    page.getByRole('button', { name: 'permissions', exact: true })
+  ).toHaveCount(0);
+  await page.getByRole('button', { name: 'browse', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Upload files', exact: true })
+  ).toBeVisible();
 });

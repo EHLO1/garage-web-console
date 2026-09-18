@@ -46,14 +46,14 @@
       required: true
     }
   ];
-  let manager = $derived(
-    $auth?.user?.role === 'owner' || $auth?.user?.role === 'admin'
-  );
+  let manager = $derived($auth?.user?.role === 'admin');
   let links = $derived([
     { path: '/', label: 'Dashboard', icon: LayoutDashboard },
     ...(manager ? [{ path: '/cluster', label: 'Cluster', icon: Network }] : []),
     { path: '/buckets', label: 'Buckets', icon: Database },
-    { path: '/keys', label: 'Access Keys', icon: KeyRound },
+    ...(manager
+      ? [{ path: '/keys', label: 'Access Keys', icon: KeyRound }]
+      : []),
     ...(manager
       ? [
           { path: '/users', label: 'Users', icon: Users },
@@ -78,7 +78,7 @@
     if (
       ready &&
       !manager &&
-      ['/cluster', '/users', '/logs'].some(
+      ['/cluster', '/users', '/logs', '/keys'].some(
         (path) => page.url.pathname === url(path)
       )
     )
@@ -152,7 +152,7 @@
         <p class="px-3 text-xs text-muted-foreground">
           {$auth?.user?.role || ''}
         </p>
-        {#if $auth?.user && $auth.user.id !== 'legacy'}<Button
+        {#if $auth?.user}<Button
             variant="ghost"
             onclick={() => (passwordOpen = true)}
           >
@@ -181,7 +181,7 @@
         <span class="font-semibold">Garage Web Console</span>
       </header>
       <main class="mx-auto max-w-7xl p-5 md:p-8">
-        {#if manager || !['/cluster', '/users', '/logs'].some((path) => page.url.pathname === url(path))}{@render children()}{/if}
+        {#if manager || !['/cluster', '/users', '/logs', '/keys'].some((path) => page.url.pathname === url(path))}{@render children()}{/if}
       </main>
     </div>
   </div>

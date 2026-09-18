@@ -82,11 +82,6 @@ func (c *Users) Create(w http.ResponseWriter, r *http.Request) {
 		utils.ResponseErrorStatus(w, errors.New("password must be at least 6 characters"), http.StatusBadRequest)
 		return
 	}
-	// Only owners may create other owners.
-	if role == schema.RoleOwner && current.Role != schema.RoleOwner {
-		utils.ResponseErrorStatus(w, errors.New("only an owner can create owner accounts"), http.StatusForbidden)
-		return
-	}
 
 	passwordHash, err := hashPasswordOrRandom(body.Password)
 	if err != nil {
@@ -95,7 +90,7 @@ func (c *Users) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	buckets := body.Buckets
-	if role != schema.RoleDeveloper {
+	if role == schema.RoleAdmin {
 		buckets = []string{}
 	}
 
@@ -127,15 +122,9 @@ func (c *Users) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id := r.PathValue("id")
-	target, ok := utils.Users.GetByID(id)
+	_, ok = utils.Users.GetByID(id)
 	if !ok {
 		utils.ResponseErrorStatus(w, errors.New("user not found"), http.StatusNotFound)
-		return
-	}
-
-	// Admins cannot modify owner accounts.
-	if target.Role == schema.RoleOwner && current.Role != schema.RoleOwner {
-		utils.ResponseErrorStatus(w, errors.New("only an owner can modify owner accounts"), http.StatusForbidden)
 		return
 	}
 
@@ -148,18 +137,6 @@ func (c *Users) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		utils.ResponseError(w, err)
-		return
-	}
-
-	// Only owners may promote users to owner.
-	if body.Role != nil && schema.Role(*body.Role) == schema.RoleOwner && current.Role != schema.RoleOwner {
-		utils.ResponseErrorStatus(w, errors.New("only an owner can assign the owner role"), http.StatusForbidden)
-		return
-	}
-	// Prevent demoting the last owner.
-	if body.Role != nil && target.Role == schema.RoleOwner && schema.Role(*body.Role) != schema.RoleOwner &&
-		utils.Users.CountByRole(schema.RoleOwner) <= 1 {
-		utils.ResponseErrorStatus(w, errors.New("cannot demote the last owner"), http.StatusBadRequest)
 		return
 	}
 
@@ -184,7 +161,7 @@ func (c *Users) Update(w http.ResponseWriter, r *http.Request) {
 		if body.Buckets != nil {
 			u.Buckets = *body.Buckets
 		}
-		if u.Role != schema.RoleDeveloper {
+		if u.Role == schema.RoleAdmin {
 			u.Buckets = []string{}
 		}
 		if body.Password != nil && *body.Password != "" {
@@ -200,6 +177,10 @@ func (c *Users) Update(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 	if err != nil {
+		if errors.Is(err, utils.ErrLastAdmin) {
+			utils.ResponseErrorStatus(w, err, http.StatusBadRequest)
+			return
+		}
 		utils.ResponseError(w, err)
 		return
 	}
@@ -229,16 +210,11 @@ func (c *Users) Delete(w http.ResponseWriter, r *http.Request) {
 		utils.ResponseErrorStatus(w, errors.New("you cannot delete your own account"), http.StatusBadRequest)
 		return
 	}
-	if target.Role == schema.RoleOwner && current.Role != schema.RoleOwner {
-		utils.ResponseErrorStatus(w, errors.New("only an owner can delete owner accounts"), http.StatusForbidden)
-		return
-	}
-	if target.Role == schema.RoleOwner && utils.Users.CountByRole(schema.RoleOwner) <= 1 {
-		utils.ResponseErrorStatus(w, errors.New("cannot delete the last owner"), http.StatusBadRequest)
-		return
-	}
-
 	if err := utils.Users.Delete(id); err != nil {
+		if errors.Is(err, utils.ErrLastAdmin) {
+			utils.ResponseErrorStatus(w, err, http.StatusBadRequest)
+			return
+		}
 		utils.ResponseError(w, err)
 		return
 	}

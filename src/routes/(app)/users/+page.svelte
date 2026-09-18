@@ -22,7 +22,7 @@
     username: edit?.username || '',
     email: edit?.email || '',
     password: '',
-    role: edit?.role || 'developer',
+    role: edit?.role || 'user',
     buckets: edit?.buckets || []
   });
   let fields = $derived([
@@ -43,14 +43,14 @@
       name: 'role',
       label: 'Role',
       type: 'select' as const,
-      options: ($auth?.user?.role === 'owner'
-        ? ['owner', 'admin', 'developer']
-        : ['admin', 'developer']
-      ).map((value) => ({ value, label: value }))
+      options: ['admin', 'user', 'viewer'].map((value) => ({
+        value,
+        label: value
+      }))
     },
     {
       name: 'buckets',
-      label: 'Assigned buckets (developers only)',
+      label: 'Assigned buckets (users and viewers)',
       type: 'multi' as const,
       options: (data.data?.buckets || []).map((b) => ({
         value: b.id,
@@ -74,6 +74,10 @@
     Add user
   </Button>
 </div>
+<p class="muted mb-5">
+  Admins have full access. Users can manage assigned buckets and objects.
+  Viewers can browse and download from assigned buckets. Keys are admin-only.
+</p>
 <input
   class="input mb-5 max-w-sm"
   aria-label="Search users"
@@ -101,7 +105,7 @@
           <td>{user.email || '—'}</td>
           <td><span class="badge">{user.role}</span></td>
           <td>
-            {user.role === 'developer'
+            {user.role !== 'admin'
               ? (user.buckets || [])
                   .map(
                     (id) =>
@@ -113,20 +117,20 @@
           </td>
           <td>{new Date(user.createdAt).toLocaleDateString()}</td>
           <td>
-            {#if $auth?.user?.role === 'owner' || user.role !== 'owner'}<Button
+            <Button
+              variant="ghost"
+              onclick={() => {
+                edit = user;
+                open = true;
+              }}
+            >
+              Edit
+            </Button>{#if user.id !== $auth?.user?.id}<Button
                 variant="ghost"
-                onclick={() => {
-                  edit = user;
-                  open = true;
-                }}
+                onclick={() => (deleting = user)}
               >
-                Edit
-              </Button>{#if user.id !== $auth?.user?.id}<Button
-                  variant="ghost"
-                  onclick={() => (deleting = user)}
-                >
-                  Delete
-                </Button>{/if}{/if}
+                Delete
+              </Button>{/if}
           </td>
         </tr>{:else}<tr>
           <td colspan="6" class="muted py-8 text-center">No users found.</td>
@@ -148,7 +152,7 @@
       username: values.username,
       email: values.email || '',
       role: values.role,
-      buckets: values.role === 'developer' ? values.buckets || [] : [],
+      buckets: values.role !== 'admin' ? values.buckets || [] : [],
       ...(values.password ? { password: values.password } : {})
     };
     if (edit) await api.fetch('/users/' + edit.id, { method: 'PATCH', body });

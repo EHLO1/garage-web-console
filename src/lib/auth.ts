@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 import api from './api';
-export type Role = 'owner' | 'admin' | 'developer';
+export type Role = 'admin' | 'user' | 'viewer';
 export type AuthUser = {
   id: string;
   username: string;

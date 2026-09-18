@@ -37,16 +37,19 @@
     })
   );
   const config = resource(() =>
-    $auth?.user?.role === 'developer'
+    $auth?.user?.role !== 'admin'
       ? Promise.resolve<Config | null>(null)
       : api.get<Config>('/config')
+  );
+  let writable = $derived(
+    $auth?.user?.role === 'admin' || $auth?.user?.role === 'user'
   );
   let selected = $state<string[]>([]);
   let deleting = $state<string[]>([]);
   let createFolder = $state(false);
   let dragDepth = $state(0);
-  let fileInput: HTMLInputElement;
-  let folderInput: HTMLInputElement;
+  let fileInput = $state<HTMLInputElement>();
+  let folderInput = $state<HTMLInputElement>();
   let sharing = $state(false);
   let shareKeys = $state<string[]>([]);
   let domain = $state('');
@@ -119,6 +122,7 @@
       : [...selected, key];
   }
   function uploadFiles(event: Event) {
+    if (!writable) return;
     const input = event.currentTarget as HTMLInputElement;
     uploadStore.enqueue(
       Array.from(input.files || []).map((file) => ({
@@ -132,6 +136,7 @@
   async function drop(event: DragEvent) {
     event.preventDefault();
     dragDepth = 0;
+    if (!writable) return;
     const targetBucket = bucketName;
     const targetPrefix = prefix;
     try {
@@ -207,7 +212,7 @@
   aria-label="Object browser"
   class="card relative"
   ondragenter={(event) => {
-    if (event.dataTransfer?.types.includes('Files')) {
+    if (writable && event.dataTransfer?.types.includes('Files')) {
       event.preventDefault();
       dragDepth++;
     }
@@ -240,32 +245,35 @@
         }}
       >
         Refresh
-      </Button><Button variant="outline" onclick={() => (createFolder = true)}>
-        New folder
-      </Button><Button variant="outline" onclick={() => folderInput.click()}>
-        Upload folder
-      </Button><Button onclick={() => fileInput.click()}>
-        <Upload size={16} />Upload files
-      </Button>
+      </Button>{#if writable}<Button
+          variant="outline"
+          onclick={() => (createFolder = true)}
+        >
+          New folder
+        </Button><Button variant="outline" onclick={() => folderInput?.click()}>
+          Upload folder
+        </Button><Button onclick={() => fileInput?.click()}>
+          <Upload size={16} />Upload files
+        </Button>{/if}
     </div>
   </div>
-  <input
-    bind:this={fileInput}
-    class="hidden"
-    type="file"
-    multiple
-    onchange={uploadFiles}
-    aria-label="Upload files"
-  />
-  <input
-    bind:this={folderInput}
-    class="hidden"
-    type="file"
-    multiple
-    webkitdirectory
-    onchange={uploadFiles}
-    aria-label="Upload folder"
-  />
+  {#if writable}<input
+      bind:this={fileInput}
+      class="hidden"
+      type="file"
+      multiple
+      onchange={uploadFiles}
+      aria-label="Upload files"
+    />
+    <input
+      bind:this={folderInput}
+      class="hidden"
+      type="file"
+      multiple
+      webkitdirectory
+      onchange={uploadFiles}
+      aria-label="Upload folder"
+    />{/if}
   {#if selected.length}<div
       class="mb-4 flex flex-wrap items-center gap-2 rounded-md bg-muted p-3"
     >
@@ -278,14 +286,18 @@
         disabled={!selected.some((key) => !key.endsWith('/'))}
       >
         Share files
-      </Button><Button variant="outline" onclick={() => move(selected)}>
-        Move
-      </Button><Button
-        variant="destructive"
-        onclick={() => (deleting = [...selected])}
-      >
-        Delete
-      </Button>
+      </Button>{#if writable}<Button
+          variant="outline"
+          onclick={() => move(selected)}
+        >
+          Move
+        </Button><Button
+          variant="destructive"
+          onclick={() => (deleting = [...selected])}
+        >
+          Delete
+        </Button>
+      {/if}
     </div>{/if}
   <RequestState
     loading={objects.loading}
@@ -338,14 +350,18 @@
               <td>—</td>
               <td>
                 <div class="flex gap-1">
-                  <Button variant="ghost" onclick={() => move([folder])}>
-                    Move
-                  </Button><Button
-                    variant="ghost"
-                    onclick={() => (deleting = [folder])}
-                  >
-                    Delete
-                  </Button>
+                  {#if writable}<Button
+                      variant="ghost"
+                      onclick={() => move([folder])}
+                    >
+                      Move
+                    </Button><Button
+                      variant="ghost"
+                      onclick={() => (deleting = [folder])}
+                    >
+                      Delete
+                    </Button>
+                  {/if}
                 </div>
               </td>
             </tr>{/each}
@@ -394,20 +410,25 @@
                   </a>
                   <Button variant="ghost" onclick={() => share([key])}>
                     Share
-                  </Button><Button variant="ghost" onclick={() => move([key])}>
-                    Move
-                  </Button><Button
-                    variant="ghost"
-                    onclick={() => (deleting = [key])}
-                  >
-                    Delete
-                  </Button>
+                  </Button>{#if writable}<Button
+                      variant="ghost"
+                      onclick={() => move([key])}
+                    >
+                      Move
+                    </Button><Button
+                      variant="ghost"
+                      onclick={() => (deleting = [key])}
+                    >
+                      Delete
+                    </Button>{/if}
                 </div>
               </td>
             </tr>{/each}
           {#if !allKeys.length}<tr>
               <td colspan="5" class="py-16 text-center text-muted-foreground">
-                This folder is empty. Upload files or drop them here.
+                {writable
+                  ? 'This folder is empty. Upload files or drop them here.'
+                  : 'This folder is empty.'}
               </td>
             </tr>{/if}
         {/if}

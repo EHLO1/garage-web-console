@@ -16,7 +16,6 @@ import (
 // cookie middleware, and persisted user store rather than mocking the libraries.
 func TestPasswordAndSessionLifecycle(t *testing.T) {
 	t.Setenv("USERS_PATH", filepath.Join(t.TempDir(), "users.json"))
-	t.Setenv("AUTH_USER_PASS", "")
 	t.Setenv("OIDC_CLIENT_ID", "")
 	t.Setenv("OIDC_CLIENT_SECRET", "")
 	previousUsers, previousSession := utils.Users, utils.Session

@@ -11,9 +11,7 @@
   const buckets = resource(() => api.get<Bucket[]>('/buckets'));
   let search = $state('');
   let create = $state(false);
-  let manager = $derived(
-    $auth?.user?.role === 'owner' || $auth?.user?.role === 'admin'
-  );
+  let manager = $derived($auth?.user?.role === 'admin');
   let filtered = $derived(
     (buckets.data || []).filter((b) =>
       `${b.id} ${b.globalAliases?.join(' ')}`

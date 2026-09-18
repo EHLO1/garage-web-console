@@ -5,24 +5,12 @@ import "time"
 type Role string
 
 const (
-	RoleOwner     Role = "owner"
-	RoleAdmin     Role = "admin"
-	RoleDeveloper Role = "developer"
+	RoleAdmin  Role = "admin"
+	RoleUser   Role = "user"
+	RoleViewer Role = "viewer"
 )
 
-func (r Role) IsValid() bool {
-	switch r {
-	case RoleOwner, RoleAdmin, RoleDeveloper:
-		return true
-	}
-	return false
-}
-
-// CanManage reports whether the role is allowed to manage cluster resources
-// (buckets, keys) and other users. Developers are not managers.
-func (r Role) CanManage() bool {
-	return r == RoleOwner || r == RoleAdmin
-}
+func (r Role) IsValid() bool { return r == RoleAdmin || r == RoleUser || r == RoleViewer }
 
 type User struct {
 	ID           string    `json:"id"`

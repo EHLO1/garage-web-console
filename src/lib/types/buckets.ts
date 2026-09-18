@@ -1,4 +1,5 @@
 export type Bucket = {
+  browseAvailable: boolean;
   id: string;
   globalAliases: string[];
   localAliases: LocalAlias[];

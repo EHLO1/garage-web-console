@@ -3,37 +3,14 @@
   import api from '#lib/api.ts';
   import { resource } from '#lib/resource.svelte.ts';
   import { copyToClipboard, handleError } from '#lib/utils.ts';
-  import type { Bucket } from '#lib/types/buckets.ts';
   import Button from '#lib/components/Button.svelte';
   import FormDialog from '#lib/components/FormDialog.svelte';
   import RequestState from '#lib/components/RequestState.svelte';
-  let manager = $derived(
-    $auth?.user?.role === 'owner' || $auth?.user?.role === 'admin'
-  );
+  let manager = $derived($auth?.user?.role === 'admin');
   type KeyRow = { id: string; name: string; access?: string[] };
-  const keys = resource(async (): Promise<KeyRow[]> => {
-    if (manager) return api.get('/v2/ListKeys');
-    const buckets = await api.get<Bucket[]>('/buckets');
-    const result = new Map<string, KeyRow>();
-    for (const bucket of buckets)
-      for (const key of bucket.keys || []) {
-        const row = result.get(key.accessKeyId) || {
-          id: key.accessKeyId,
-          name: key.name,
-          access: []
-        };
-        row.access?.push(
-          `${bucket.globalAliases?.[0] || bucket.id}: ${Object.entries(
-            key.permissions
-          )
-            .filter(([, enabled]) => enabled)
-            .map(([name]) => name)
-            .join(', ')}`
-        );
-        result.set(row.id, row);
-      }
-    return [...result.values()];
-  });
+  const keys = resource(async (): Promise<KeyRow[]> =>
+    manager ? api.get('/v2/ListKeys') : []
+  );
   let secrets = $state<Record<string, string>>({});
   let create = $state(false);
   let importing = $state(false);

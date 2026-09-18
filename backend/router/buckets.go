@@ -6,6 +6,7 @@ import (
 	"khairul169/garage-webui/schema"
 	"khairul169/garage-webui/utils"
 	"net/http"
+	"net/url"
 )
 
 type Buckets struct{}
@@ -50,8 +51,8 @@ func (b *Buckets) GetAll(w http.ResponseWriter, r *http.Request) {
 		res = append(res, <-ch)
 	}
 
-	// Developers only see the buckets assigned to them.
-	if user, ok := utils.GetCurrentUser(r); ok && user.Role == schema.RoleDeveloper {
+	// Non-admins only see the buckets assigned to them.
+	if user, ok := utils.GetCurrentUser(r); ok && user.Role != schema.RoleAdmin {
 		filtered := make([]schema.Bucket, 0, len(res))
 		for _, bucket := range res {
 			if user.HasBucket(bucket.ID) {
@@ -61,5 +62,47 @@ func (b *Buckets) GetAll(w http.ResponseWriter, r *http.Request) {
 		res = filtered
 	}
 
+	user, _ := utils.GetCurrentUser(r)
+	for i := range res {
+		prepareBucket(&res[i], user.Role)
+	}
 	utils.ResponseSuccess(w, res)
+}
+
+func prepareBucket(bucket *schema.Bucket, role schema.Role) {
+	for _, key := range bucket.Keys {
+		if key.Permissions.Read && key.Permissions.Write {
+			bucket.BrowseAvailable = true
+		}
+	}
+	if role != schema.RoleAdmin {
+		bucket.Keys = nil
+		bucket.LocalAliases = nil
+	}
+}
+
+func (b *Buckets) GetOne(w http.ResponseWriter, r *http.Request) {
+	query := url.Values{}
+	if id := r.URL.Query().Get("id"); id != "" {
+		query.Set("id", id)
+	} else {
+		query.Set("globalAlias", r.URL.Query().Get("globalAlias"))
+	}
+	body, err := utils.Garage.Fetch("/v2/GetBucketInfo?"+query.Encode(), &utils.FetchOptions{})
+	if err != nil {
+		utils.ResponseError(w, err)
+		return
+	}
+	var bucket schema.Bucket
+	if err := json.Unmarshal(body, &bucket); err != nil {
+		utils.ResponseError(w, err)
+		return
+	}
+	user, _ := utils.GetCurrentUser(r)
+	if user.Role != schema.RoleAdmin && !user.HasBucket(bucket.ID) {
+		utils.ResponseErrorStatus(w, fmt.Errorf("bucket access denied"), http.StatusForbidden)
+		return
+	}
+	prepareBucket(&bucket, user.Role)
+	utils.ResponseSuccess(w, bucket)
 }

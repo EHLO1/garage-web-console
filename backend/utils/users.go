@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"khairul169/garage-webui/schema"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -14,10 +13,6 @@ import (
 	"sync"
 	"time"
 )
-
-// LegacyUserID is the synthetic id used when a client authenticates via the
-// legacy AUTH_USER_PASS environment variable instead of the user store.
-const LegacyUserID = "__legacy__"
 
 type UserStore struct {
 	path  string
@@ -27,12 +22,15 @@ type UserStore struct {
 
 var Users *UserStore
 
-func InitUserStore() {
+var ErrLastAdmin = errors.New("cannot remove or demote the last admin")
+
+func InitUserStore() error {
 	path := GetEnv("USERS_PATH", "/data/users.json")
 	Users = &UserStore{path: path}
 	if err := Users.load(); err != nil {
-		log.Println("Cannot load user store!", err)
+		return err
 	}
+	return nil
 }
 
 func generateID() string {
@@ -56,7 +54,15 @@ func (s *UserStore) load() error {
 		return err
 	}
 
-	return json.Unmarshal(data, &s.users)
+	if err := json.Unmarshal(data, &s.users); err != nil {
+		return err
+	}
+	for _, user := range s.users {
+		if !user.Role.IsValid() {
+			return errors.New("user store contains an invalid role")
+		}
+	}
+	return nil
 }
 
 // save persists the store to disk. Callers must hold the write lock.
@@ -147,6 +153,23 @@ func (s *UserStore) GetByEmail(email string) (schema.User, bool) {
 func (s *UserStore) Create(user schema.User) (schema.User, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.createLocked(user)
+}
+
+func (s *UserStore) CreateInitialAdmin(user schema.User) (schema.User, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.users) != 0 {
+		return schema.User{}, errors.New("registration is closed")
+	}
+	user.Role = schema.RoleAdmin
+	return s.createLocked(user)
+}
+
+func (s *UserStore) createLocked(user schema.User) (schema.User, error) {
+	if !user.Role.IsValid() {
+		return schema.User{}, errors.New("invalid role")
+	}
 
 	for _, u := range s.users {
 		if strings.EqualFold(u.Username, user.Username) {
@@ -191,6 +214,12 @@ func (s *UserStore) Update(id string, fn func(*schema.User) error) (schema.User,
 		if err := fn(&updated); err != nil {
 			return schema.User{}, err
 		}
+		if !updated.Role.IsValid() {
+			return schema.User{}, errors.New("invalid role")
+		}
+		if s.users[i].Role == schema.RoleAdmin && updated.Role != schema.RoleAdmin && s.adminCountLocked() <= 1 {
+			return schema.User{}, ErrLastAdmin
+		}
 
 		for j := range s.users {
 			if j == i {
@@ -230,6 +259,9 @@ func (s *UserStore) Delete(id string) error {
 		}
 
 		old := s.users
+		if s.users[i].Role == schema.RoleAdmin && s.adminCountLocked() <= 1 {
+			return ErrLastAdmin
+		}
 		s.users = append(s.users[:i:i], s.users[i+1:]...)
 		if err := s.save(); err != nil {
 			s.users = old
@@ -241,8 +273,18 @@ func (s *UserStore) Delete(id string) error {
 	return errors.New("user not found")
 }
 
+// Caller must hold the store lock so concurrent changes cannot remove all admins.
+func (s *UserStore) adminCountLocked() int {
+	n := 0
+	for _, user := range s.users {
+		if user.Role == schema.RoleAdmin {
+			n++
+		}
+	}
+	return n
+}
+
 // GetCurrentUser resolves the authenticated user from the request session.
-// It returns a synthetic owner for legacy AUTH_USER_PASS sessions.
 func GetCurrentUser(r *http.Request) (schema.User, bool) {
 	idVal := Session.Get(r, "userId")
 	if idVal == nil {
@@ -252,16 +294,6 @@ func GetCurrentUser(r *http.Request) (schema.User, bool) {
 	id, ok := idVal.(string)
 	if !ok || id == "" {
 		return schema.User{}, false
-	}
-
-	if id == LegacyUserID {
-		username := strings.Split(GetEnv("AUTH_USER_PASS", ""), ":")[0]
-		return schema.User{
-			ID:       LegacyUserID,
-			Username: username,
-			Role:     schema.RoleOwner,
-			Buckets:  []string{},
-		}, true
 	}
 
 	return Users.GetByID(id)

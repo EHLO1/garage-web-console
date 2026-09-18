@@ -92,7 +92,7 @@
         </h1>
         <p class="mt-2 text-sm text-muted-foreground">
           {register
-            ? 'Create the owner account to get started.'
+            ? 'Create the admin account to get started.'
             : 'Sign in to your storage console.'}
         </p>
       </header>
@@ -145,7 +145,7 @@
           {busy
             ? 'Please wait…'
             : register
-              ? 'Create owner account'
+              ? 'Create admin account'
               : 'Sign in'}
         </Button>
       </form>

@@ -8,6 +8,7 @@ type GetBucketsRes struct {
 }
 
 type Bucket struct {
+	BrowseAvailable                bool          `json:"browseAvailable"`
 	ID                             string        `json:"id"`
 	GlobalAliases                  []string      `json:"globalAliases"`
 	LocalAliases                   []LocalAlias  `json:"localAliases"`

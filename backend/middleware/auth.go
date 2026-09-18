@@ -1,14 +1,15 @@
 package middleware
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"khairul169/garage-webui/schema"
 	"khairul169/garage-webui/utils"
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 )
 
 var errForbidden = errors.New("you do not have permission to access this resource")
@@ -20,181 +21,148 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			utils.ResponseErrorStatus(w, errors.New("unauthorized"), http.StatusUnauthorized)
 			return
 		}
-
 		if err := authorize(user, r); err != nil {
 			utils.ResponseErrorStatus(w, err, http.StatusForbidden)
 			return
 		}
-
 		next.ServeHTTP(w, r)
 	})
 }
 
 func authorize(user schema.User, r *http.Request) error {
-	// Owners and admins have full access to cluster resources. Fine-grained
-	// owner-vs-admin rules for user management are enforced in the handlers.
-	if user.Role.CanManage() {
+	if user.Role == schema.RoleAdmin {
 		return nil
 	}
-
-	if user.Role == schema.RoleDeveloper {
-		return authorizeDeveloper(user, r)
+	if user.Role != schema.RoleUser && user.Role != schema.RoleViewer {
+		return errForbidden
 	}
-
+	path, method := r.URL.Path, r.Method
+	if method == http.MethodGet && path == "/buckets" {
+		return nil
+	}
+	if strings.HasPrefix(path, "/browse/") {
+		if method != http.MethodGet && (user.Role != schema.RoleUser || (method != http.MethodPut && method != http.MethodPost && method != http.MethodDelete)) {
+			return errForbidden
+		}
+		if canAccessBucket(user, bucketFromBrowsePath(r.URL.EscapedPath())) {
+			return nil
+		}
+		return errForbidden
+	}
+	if method == http.MethodGet && path == "/v2/GetBucketInfo" {
+		// Exactly one selector avoids ambiguous upstream query interpretation.
+		q := r.URL.Query()
+		if len(q) == 1 && len(q["id"]) == 1 && user.HasBucket(q.Get("id")) {
+			return nil
+		}
+		if len(q) == 1 && len(q["globalAlias"]) == 1 && canAccessBucket(user, q.Get("globalAlias")) {
+			return nil
+		}
+		return errForbidden
+	}
+	if user.Role != schema.RoleUser || method != http.MethodPost {
+		return errForbidden
+	}
+	switch path {
+	case "/v2/UpdateBucket", "/v2/DeleteBucket":
+		q := r.URL.Query()
+		if len(q) != 1 || len(q["id"]) != 1 || !user.HasBucket(q.Get("id")) {
+			return errForbidden
+		}
+		if path == "/v2/DeleteBucket" {
+			return nil
+		}
+		// Only bucket-local settings are allowed. Reject unknown or duplicate fields.
+		body, err := readObject(r)
+		if err != nil {
+			return errForbidden
+		}
+		for key := range body {
+			if key != "quotas" && key != "websiteAccess" {
+				return errForbidden
+			}
+		}
+		return nil
+	case "/v2/AddBucketAlias", "/v2/RemoveBucketAlias":
+		if r.URL.RawQuery != "" {
+			return errForbidden
+		}
+		body, err := readObject(r)
+		if err != nil || len(body) != 2 {
+			return errForbidden
+		}
+		var bucketID, alias string
+		if json.Unmarshal(body["bucketId"], &bucketID) != nil || json.Unmarshal(body["globalAlias"], &alias) != nil || alias == "" || !user.HasBucket(bucketID) {
+			return errForbidden
+		}
+		return nil
+	}
+	// Key APIs, grants, cluster operations, config, users, logs, and new endpoints
+	// are denied unless explicitly allowed above.
 	return errForbidden
 }
 
-// authorizeDeveloper restricts developers to object-level access on the buckets
-// assigned to them, plus read-only info for those buckets.
-func authorizeDeveloper(user schema.User, r *http.Request) error {
-	path := r.URL.Path
-	method := r.Method
-
-	switch {
-	// Listing buckets is allowed; the handler filters to assigned buckets.
-	case method == http.MethodGet && path == "/buckets":
-		return nil
-
-	// Object browser (list/get/put/delete) on assigned buckets only.
-	case strings.HasPrefix(path, "/browse/"):
-		bucket := bucketFromBrowsePath(path)
-		if bucket != "" && developerCanAccessBucket(user, bucket) {
-			return nil
-		}
-		return errForbidden
-
-	// Read-only bucket info for assigned buckets.
-	case method == http.MethodGet && path == "/v2/GetBucketInfo":
-		if developerCanAccessBucketQuery(user, r) {
-			return nil
-		}
-		return errForbidden
-
-	// Read-only key info (incl. secret) for keys granting access to an
-	// assigned bucket, so developers can use their buckets programmatically.
-	case method == http.MethodGet && path == "/v2/GetKeyInfo":
-		if developerCanAccessKey(user, r.URL.Query().Get("id")) {
-			return nil
-		}
-		return errForbidden
+// Preserve the validated body for the proxy; reject duplicate top-level keys.
+func readObject(r *http.Request) (map[string]json.RawMessage, error) {
+	data, err := io.ReadAll(io.LimitReader(r.Body, 65537))
+	if err != nil || len(data) > 65536 {
+		return nil, errForbidden
 	}
-
-	return errForbidden
+	r.Body = io.NopCloser(bytes.NewReader(data))
+	dec := json.NewDecoder(bytes.NewReader(data))
+	token, err := dec.Token()
+	if err != nil || token != json.Delim('{') {
+		return nil, errForbidden
+	}
+	result := map[string]json.RawMessage{}
+	for dec.More() {
+		token, err := dec.Token()
+		if err != nil {
+			return nil, err
+		}
+		name, ok := token.(string)
+		if !ok {
+			return nil, errForbidden
+		}
+		if _, exists := result[name]; exists {
+			return nil, errForbidden
+		}
+		var value json.RawMessage
+		if err := dec.Decode(&value); err != nil {
+			return nil, err
+		}
+		result[name] = value
+	}
+	if _, err := dec.Token(); err != nil {
+		return nil, err
+	}
+	if _, err := dec.Token(); err != io.EOF {
+		return nil, errForbidden
+	}
+	return result, nil
 }
 
 func bucketFromBrowsePath(path string) string {
-	// path looks like "/browse/{bucket}" or "/browse/{bucket}/{key...}"
 	rest := strings.TrimPrefix(path, "/browse/")
-	if rest == "" {
+	name, _, _ := strings.Cut(rest, "/")
+	decoded, err := url.PathUnescape(name)
+	if err != nil {
 		return ""
 	}
-	name := rest
-	if idx := strings.Index(rest, "/"); idx >= 0 {
-		name = rest[:idx]
-	}
-	if decoded, err := url.PathUnescape(name); err == nil {
-		return decoded
-	}
-	return name
+	return decoded
 }
 
-func developerCanAccessBucket(user schema.User, aliasOrID string) bool {
-	// Assignment is stored by bucket id; accept a direct id match first.
-	if user.HasBucket(aliasOrID) {
-		return true
+func canAccessBucket(user schema.User, aliasOrID string) bool {
+	if aliasOrID == "" {
+		return false
 	}
-	id, err := resolveBucketID(aliasOrID)
+	// Resolve aliases fresh: reassignment must not retain access to the old bucket.
+	body, err := utils.Garage.Fetch("/v2/GetBucketInfo?globalAlias="+url.QueryEscape(aliasOrID), &utils.FetchOptions{})
 	if err != nil {
 		return false
 	}
-	return user.HasBucket(id)
-}
-
-func developerCanAccessBucketQuery(user schema.User, r *http.Request) bool {
-	query := r.URL.Query()
-	if id := query.Get("id"); id != "" {
-		return user.HasBucket(id)
-	}
-	if alias := query.Get("globalAlias"); alias != "" {
-		return developerCanAccessBucket(user, alias)
-	}
-	return false
-}
-
-// developerCanAccessKey reports whether the key grants access to any of the
-// developer's assigned buckets.
-func developerCanAccessKey(user schema.User, keyID string) bool {
-	if keyID == "" {
-		return false
-	}
-	for _, bucketID := range user.Buckets {
-		ids, err := bucketKeyIDs(bucketID)
-		if err != nil {
-			continue
-		}
-		for _, id := range ids {
-			if id == keyID {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// bucketKeyIDs returns the access key ids that have permissions on a bucket,
-// caching the result briefly since grants can change.
-func bucketKeyIDs(bucketID string) ([]string, error) {
-	cacheKey := "bucketkeys:" + bucketID
-	if cached := utils.Cache.Get(cacheKey); cached != nil {
-		return cached.([]string), nil
-	}
-
-	body, err := utils.Garage.Fetch("/v2/GetBucketInfo?id="+url.QueryEscape(bucketID), &utils.FetchOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	var info struct {
-		Keys []struct {
-			AccessKeyID string `json:"accessKeyId"`
-		} `json:"keys"`
-	}
-	if err := json.Unmarshal(body, &info); err != nil {
-		return nil, err
-	}
-
-	ids := make([]string, 0, len(info.Keys))
-	for _, k := range info.Keys {
-		ids = append(ids, k.AccessKeyID)
-	}
-
-	utils.Cache.Set(cacheKey, ids, 5*time.Minute)
-	return ids, nil
-}
-
-// resolveBucketID maps a global alias to its bucket id via the Garage admin API,
-// caching the result to avoid repeating the lookup on every request.
-func resolveBucketID(alias string) (string, error) {
-	cacheKey := "bucketid:" + alias
-	if cached := utils.Cache.Get(cacheKey); cached != nil {
-		return cached.(string), nil
-	}
-
-	body, err := utils.Garage.Fetch("/v2/GetBucketInfo?globalAlias="+url.QueryEscape(alias), &utils.FetchOptions{})
-	if err != nil {
-		return "", err
-	}
-
 	var info struct {
 		ID string `json:"id"`
 	}
-	if err := json.Unmarshal(body, &info); err != nil {
-		return "", err
-	}
-	if info.ID == "" {
-		return "", errors.New("bucket not found")
-	}
-
-	utils.Cache.Set(cacheKey, info.ID, time.Hour)
-	return info.ID, nil
+	return json.Unmarshal(body, &info) == nil && user.HasBucket(info.ID)
 }

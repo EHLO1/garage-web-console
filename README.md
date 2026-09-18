@@ -22,14 +22,14 @@ A simple admin web UI for [Garage](https://garagehq.deuxfleurs.fr/), a self-host
 
 **Access control & security** _(added in this fork)_
 
-- Multi-user accounts with **owner / admin / developer** roles, replacing the single shared login
-- One-time **owner registration** screen on first launch (no users yet)
+- Multi-user accounts with **admin / user / viewer** roles, replacing the single shared login
+- One-time **admin registration** screen on first launch (no users yet)
 - **Developers** are scoped to only the buckets explicitly assigned to them (browse, upload,
   download, delete objects, view their own keys) — no cluster, key, or user management
 - Optional **OIDC sign-in**, deny-by-default: a provider account can only sign in
   if an admin has already created a matching user, with a configurable hosted-domain allowlist
 - Self-service **change password** for any signed-in user
-- **Audit log viewer** (owner/admin only) recording human-readable footprint events — logins,
+- **Audit log viewer** (admin only) recording human-readable footprint events — logins,
   failed logins, user management, object uploads/deletes/moves — each with IP, user agent, and actor
 
 **Object management** _(added in this fork)_
@@ -200,56 +200,30 @@ However, if it fails to load, you can set `API_BASE_URL` & `API_ADMIN_KEY` envir
 
 Configurable envs:
 
-| Variable                                | Default                        | Description                                                                                                                                     |
-| --------------------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CONFIG_PATH`                           | `/etc/garage.toml`             | Path to the Garage `config.toml` file.                                                                                                          |
-| `BASE_PATH`                             | _(none)_                       | Base path or prefix for the Web UI.                                                                                                             |
-| `API_BASE_URL`                          | _(from config)_                | Garage admin API endpoint URL.                                                                                                                  |
-| `API_ADMIN_KEY`                         | _(from config)_                | Garage admin API key.                                                                                                                           |
-| `S3_REGION`                             | `garage`                       | S3 region.                                                                                                                                      |
-| `S3_ENDPOINT_URL`                       | _(from config)_                | S3 endpoint URL.                                                                                                                                |
-| `HOST`                                  | `0.0.0.0`                      | Address the server listens on.                                                                                                                  |
-| `PORT`                                  | `3909`                         | Port the server listens on.                                                                                                                     |
-| `AUTH_USER_PASS`                        | _(none)_                       | Legacy single-user login, `username:bcrypt_hash`. Only used while no users are registered — see [Access Control](#access-control-users--roles). |
-| `USERS_PATH`                            | `/data/users.json`             | Where the multi-user account store is persisted.                                                                                                |
-| `LOGS_PATH`                             | `/data/logs/app.log`           | Where the audit log file is persisted.                                                                                                          |
-| `TMPDIR`                                | `/data/tmp`                    | Temp directory used while streaming large object uploads to disk.                                                                               |
-| `OIDC_ISSUER`                           | _(none)_                       | Provider's exact issuer URL; enables OIDC together with client ID and redirect URL.                                                             |
-| `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` | _(none)_                       | Registered client credentials; omit the secret only for a public client.                                                                        |
-| `OIDC_REDIRECT_URL`                     | _(none)_                       | Exact public callback URL, including any `BASE_PATH`.                                                                                           |
-| `OIDC_SCOPES`                           | `email profile`                | Space- or comma-separated scopes; `openid` is always included.                                                                                  |
-| `OIDC_ALLOWED_DOMAINS`                  | _(unrestricted)_               | Optional comma-separated email-domain allowlist; existing local account still required.                                                         |
-| `OIDC_REQUIRE_VERIFIED_EMAIL`           | `true`                         | Require a verified email claim. See the provider trust requirements below before disabling.                                                     |
-| `OIDC_BUTTON_TEXT`                      | `Continue with OpenID Connect` | Login button label, rendered as plain text.                                                                                                     |
-| `OIDC_BUTTON_ICON_URL`                  | _(built-in key icon)_          | HTTPS image URL or root-relative image path, including `BASE_PATH` where applicable.                                                            |
+| Variable                                | Default                        | Description                                                                                 |
+| --------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------- |
+| `CONFIG_PATH`                           | `/etc/garage.toml`             | Path to the Garage `config.toml` file.                                                      |
+| `BASE_PATH`                             | _(none)_                       | Base path or prefix for the Web UI.                                                         |
+| `API_BASE_URL`                          | _(from config)_                | Garage admin API endpoint URL.                                                              |
+| `API_ADMIN_KEY`                         | _(from config)_                | Garage admin API key.                                                                       |
+| `S3_REGION`                             | `garage`                       | S3 region.                                                                                  |
+| `S3_ENDPOINT_URL`                       | _(from config)_                | S3 endpoint URL.                                                                            |
+| `HOST`                                  | `0.0.0.0`                      | Address the server listens on.                                                              |
+| `PORT`                                  | `3909`                         | Port the server listens on.                                                                 |
+| `USERS_PATH`                            | `/data/users.json`             | Where the multi-user account store is persisted.                                            |
+| `LOGS_PATH`                             | `/data/logs/app.log`           | Where the audit log file is persisted.                                                      |
+| `TMPDIR`                                | `/data/tmp`                    | Temp directory used while streaming large object uploads to disk.                           |
+| `OIDC_ISSUER`                           | _(none)_                       | Provider's exact issuer URL; enables OIDC together with client ID and redirect URL.         |
+| `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` | _(none)_                       | Registered client credentials; omit the secret only for a public client.                    |
+| `OIDC_REDIRECT_URL`                     | _(none)_                       | Exact public callback URL, including any `BASE_PATH`.                                       |
+| `OIDC_SCOPES`                           | `email profile`                | Space- or comma-separated scopes; `openid` is always included.                              |
+| `OIDC_ALLOWED_DOMAINS`                  | _(unrestricted)_               | Optional comma-separated email-domain allowlist; existing local account still required.     |
+| `OIDC_REQUIRE_VERIFIED_EMAIL`           | `true`                         | Require a verified email claim. See the provider trust requirements below before disabling. |
+| `OIDC_BUTTON_TEXT`                      | `Continue with OpenID Connect` | Login button label, rendered as plain text.                                                 |
+| `OIDC_BUTTON_ICON_URL`                  | _(built-in key icon)_          | HTTPS image URL or root-relative image path, including `BASE_PATH` where applicable.        |
 
 `USERS_PATH`, `LOGS_PATH`, and `TMPDIR` all default under `/data`, so make sure that directory is a
 writable, persistent volume (see the `webui-data` volume in the Docker Compose example above).
-
-### Authentication
-
-Enable authentication by setting the `AUTH_USER_PASS` environment variable in the format `username:password_hash`, where `password_hash` is a bcrypt hash of the password.
-
-Generate the username and password hash using the following command:
-
-```bash
-htpasswd -nbBC 10 "YOUR_USERNAME" "YOUR_PASSWORD"
-```
-
-> If command 'htpasswd' is not found, install `apache2-utils` using your package manager.
-
-Then update your `docker-compose.yml`:
-
-```yml
-webui:
-  ....
-  environment:
-    AUTH_USER_PASS: "username:$2y$10$DSTi9o..."
-```
-
-> This is a legacy, single-account fallback kept for compatibility with upstream deployments. It
-> only takes effect while no users exist in the account store — see the next section for the
-> recommended multi-user setup.
 
 ### Access Control (users & roles)
 
@@ -259,24 +233,37 @@ shared login. Users are stored in a JSON file on a mounted volume (default
 make sure the `webui` service has a writable `/data` volume as shown above.
 
 On first launch, when no users exist, the UI shows a one-time registration
-screen to create the initial **owner** account. Afterwards, registration is
+screen to create the initial **admin** account. Afterwards, registration is
 closed and users sign in normally.
 
 Roles:
 
-- **owner** — full access, including managing all users (owners included).
-- **admin** — manage buckets, keys, cluster, and users (but cannot modify owner
-  accounts).
-- **developer** — can only browse, upload, download, delete, and move objects, and view
-  info and their own keys for the buckets explicitly assigned to them. No cluster, bucket
-  creation, key management, or user management.
+| Capability                                                   | Admin       | User             | Viewer           |
+| ------------------------------------------------------------ | ----------- | ---------------- | ---------------- |
+| Browse, preview, download objects                            | All buckets | Assigned buckets | Assigned buckets |
+| Upload, create folders, move, delete objects                 | All buckets | Assigned buckets | No               |
+| Edit aliases, quotas, website settings; delete empty buckets | All buckets | Assigned buckets | No               |
+| Create buckets                                               | Yes         | No               | No               |
+| Manage S3 keys, reveal secrets, grant bucket permissions     | Yes         | No               | No               |
+| Cluster settings, logs, and account management               | Yes         | No               | No               |
 
-Every signed-in user can change their own password from the sidebar (**Change password**),
-except accounts authenticated via the legacy `AUTH_USER_PASS` fallback.
+Assignments are explicit bucket IDs and apply equally to users and viewers. With no
+assignments, these roles see no buckets. The console resolves aliases afresh when
+authorizing object access so reassigning an alias does not retain access to a different
+bucket. Viewers may copy public object links; doing so does not grant new access.
+The backend enforces these rules independently of hidden UI controls.
 
-The legacy `AUTH_USER_PASS` variable still works as a single-owner fallback, but
-only while the user store is empty. Once any user is registered, the user store
-takes over.
+S3 keys are infrastructure credentials, not console accounts. They stay admin-only
+because one key may grant access to several buckets. Console browsing uses credentials
+on the server; users and viewers never receive key secrets. An administrator must
+configure a global alias and a read/write key for the console object browser.
+
+The last admin cannot be deleted or demoted, including concurrent requests.
+
+User groups and OIDC group-claim assignment are not implemented; OIDC continues to
+match an existing local account by email and uses that account's role and assignments.
+
+Every signed-in user can change their password from the sidebar (**Change password**).
 
 #### OIDC sign-in (optional)
 
@@ -286,7 +273,7 @@ the SPA. Password sign-in remains available. Discovery failures can be retried
 without restarting the application.
 
 Sign-in requires an existing local user with a matching email address. Create the
-owner account first, then use **Users** to set its email or add more users. Passwords
+admin account first, then use **Users** to set its email or add more users. Passwords
 can be left blank when creating OIDC-only users. Local roles and bucket assignments
 remain authoritative; provider groups do not automatically grant access or create users.
 Email matching is case-insensitive and requires `email_verified: true` by default.
@@ -358,15 +345,6 @@ include any deployment prefix, for example `/console/favicon-32x32.png`. Unset o
 invalid icon URLs use the built-in key icon; the label has a default too. These
 settings are delivered by the backend and require no frontend rebuild.
 
-**Migrating from Google-specific configuration:** replace `GOOGLE_CLIENT_ID` and
-`GOOGLE_CLIENT_SECRET` with their `OIDC_` counterparts, set
-`OIDC_ISSUER=https://accounts.google.com`, and configure `OIDC_REDIRECT_URL` with the
-new `/api/v1/auth/oidc/callback` route. Update the registered redirect URI at Google.
-To retain email-domain restrictions, explicitly set `OIDC_ALLOWED_DOMAINS`; the old
-institution-specific defaults and Google `hd` fallback are removed. Old `GOOGLE_*`
-variables and `/auth/google/*` routes are no longer used. Existing users need no
-migration. Set `OIDC_BUTTON_TEXT=Continue with Google` to keep the familiar label.
-
 ### Object management
 
 The bucket **Browse** tab supports selecting multiple files and folders (checkbox per row, or
@@ -385,7 +363,7 @@ keep navigating the app while an upload is in flight.
 
 ### Logs (audit trail)
 
-Owners and admins have access to a **Logs** page in the sidebar, showing a searchable,
+Admins have access to a **Logs** page in the sidebar, showing a searchable,
 filterable, paginated view of application audit events — logins and failed login attempts,
 registrations, password changes, OIDC sign-in denials, user account changes, and object
 uploads/deletes/moves. Each entry is collapsible to reveal footprint details (IP address, user
@@ -536,7 +514,7 @@ image):
    $ docker compose up -d
    ```
 
-4. Open http://localhost:3909 — on first launch you'll see the owner registration screen. A fresh
+4. Open http://localhost:3909 — on first launch you'll see the admin registration screen. A fresh
    Garage cluster also needs a one-time layout assignment from the **Cluster** page before buckets
    work.
 

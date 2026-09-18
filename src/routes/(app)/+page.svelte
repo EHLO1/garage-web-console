@@ -8,9 +8,7 @@
   import type { User } from '#lib/types/users.ts';
   import RequestState from '#lib/components/RequestState.svelte';
   import Button from '#lib/components/Button.svelte';
-  let manager = $derived(
-    $auth?.user?.role === 'owner' || $auth?.user?.role === 'admin'
-  );
+  let manager = $derived($auth?.user?.role === 'admin');
   const dashboard = resource(async () => {
     const isManager = manager;
     const [buckets, health, users] = await Promise.all([
@@ -94,9 +92,7 @@
   {#if manager}<section class="card mt-6">
       <h2 class="mb-4 font-semibold">Users & roles</h2>
       <div class="mb-4 flex flex-wrap gap-3">
-        {#each ['owner', 'admin', 'developer'] as role (role)}<span
-            class="badge"
-          >
+        {#each ['admin', 'user', 'viewer'] as role (role)}<span class="badge">
             {role}: {dashboard.data.users.filter((user) => user.role === role)
               .length}
           </span>{/each}
@@ -115,7 +111,7 @@
                 <td>{user.username}</td>
                 <td><span class="badge">{user.role}</span></td>
                 <td>
-                  {user.role === 'developer'
+                  {user.role !== 'admin'
                     ? user.buckets?.length || 0
                     : 'All buckets'}
                 </td>

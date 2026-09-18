@@ -14,12 +14,6 @@ import (
 
 type Auth struct{}
 
-// legacyEnabled reports whether the deprecated single-user AUTH_USER_PASS
-// mechanism should be honored (only while the user store is empty).
-func legacyEnabled() bool {
-	return utils.Users.Count() == 0 && utils.GetEnv("AUTH_USER_PASS", "") != ""
-}
-
 func (c *Auth) Login(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Username string `json:"username"`
@@ -53,22 +47,6 @@ func (c *Auth) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Legacy fallback for existing AUTH_USER_PASS deployments.
-	if legacyEnabled() {
-		userPass := strings.Split(utils.GetEnv("AUTH_USER_PASS", ""), ":")
-		if len(userPass) >= 2 && username == userPass[0] &&
-			bcrypt.CompareHashAndPassword([]byte(userPass[1]), []byte(body.Password)) == nil {
-			utils.Session.Set(r, "userId", utils.LegacyUserID)
-			utils.Audit(r, "INFO", fmt.Sprintf("User %s has logged in", username), map[string]interface{}{
-				"event": "login",
-			})
-			utils.ResponseSuccess(w, map[string]interface{}{
-				"authenticated": true,
-			})
-			return
-		}
-	}
-
 	utils.Audit(r, "WARN", fmt.Sprintf("Failed login attempt for %q", username), map[string]interface{}{
 		"event":         "login_failed",
 		"attemptedUser": username,
@@ -76,10 +54,10 @@ func (c *Auth) Login(w http.ResponseWriter, r *http.Request) {
 	utils.ResponseErrorStatus(w, errors.New("invalid username or password"), http.StatusUnauthorized)
 }
 
-// Register creates the first user (an owner) during initial setup. It is only
-// available while no users exist and no legacy credentials are configured.
+// Register creates the first user (an admin) during initial setup. It is only
+// available only while no users exist.
 func (c *Auth) Register(w http.ResponseWriter, r *http.Request) {
-	if utils.Users.Count() > 0 || utils.GetEnv("AUTH_USER_PASS", "") != "" {
+	if utils.Users.Count() > 0 {
 		utils.ResponseErrorStatus(w, errors.New("registration is closed"), http.StatusForbidden)
 		return
 	}
@@ -109,10 +87,10 @@ func (c *Auth) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := utils.Users.Create(schema.User{
+	user, err := utils.Users.CreateInitialAdmin(schema.User{
 		Username:     username,
 		PasswordHash: string(hash),
-		Role:         schema.RoleOwner,
+		Role:         schema.RoleAdmin,
 	})
 	if err != nil {
 		utils.ResponseError(w, err)
@@ -120,7 +98,7 @@ func (c *Auth) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.Session.Set(r, "userId", user.ID)
-	utils.Audit(r, "INFO", fmt.Sprintf("Owner account %s was created", user.Username), map[string]interface{}{
+	utils.Audit(r, "INFO", fmt.Sprintf("Admin account %s was created", user.Username), map[string]interface{}{
 		"event": "register",
 	})
 	utils.ResponseSuccess(w, map[string]interface{}{
@@ -146,10 +124,6 @@ func (c *Auth) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	user, ok := utils.GetCurrentUser(r)
 	if !ok {
 		utils.ResponseErrorStatus(w, errors.New("unauthorized"), http.StatusUnauthorized)
-		return
-	}
-	if user.ID == utils.LegacyUserID {
-		utils.ResponseErrorStatus(w, errors.New("this account's password is configured via AUTH_USER_PASS"), http.StatusBadRequest)
 		return
 	}
 
@@ -192,7 +166,7 @@ func (c *Auth) ChangePassword(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *Auth) GetStatus(w http.ResponseWriter, r *http.Request) {
-	needsSetup := utils.Users.Count() == 0 && utils.GetEnv("AUTH_USER_PASS", "") == ""
+	needsSetup := utils.Users.Count() == 0
 
 	res := map[string]interface{}{
 		"enabled":           true,
