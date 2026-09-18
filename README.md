@@ -563,3 +563,21 @@ If you encounter any problems, please do not hesitate to submit an issue [here](
 - **Gene T. Bitara** — access control & RBAC, Google sign-in, audit log viewer, bulk object
   management (multi-select, move, share), drag-and-drop uploads with background progress, and the
   shadcn/ui redesign, in this fork ([genebit/s3-garagehq-webui](https://github.com/genebit/s3-garagehq-webui))
+
+## Brand assets
+
+The Garage mark is sourced from [selfh.st/icons](https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/garage.svg).
+`src/assets/garage-logo.svg` is the canonical source. A warm ivory tile preserves its
+original gray and orange colors in both themes. The centered login layout follows
+[shadcn login-05](https://www.shadcn-svelte.com/blocks/login), with the application's
+username/password, first-run setup, and configurable OIDC flow retained.
+
+To regenerate the SVG, PNG, Apple touch, and ICO browser icons after changing the source:
+
+```sh
+PLAYWRIGHT_CHANNEL=chrome node scripts/generate-icons.mjs
+```
+
+Omit `PLAYWRIGHT_CHANNEL` to use Playwright's installed Chromium. The app uses warm
+neutral theme tokens with orange accents; the login theme toggle shares the saved
+preference with the rest of the console.

@@ -6,8 +6,8 @@
   import api, { API_URL } from '#lib/api.ts';
   import { url } from '#lib/utils.ts';
   import Button from './Button.svelte';
-  import AuthPreview from './AuthPreview.svelte';
-  import { Eye, EyeOff, KeyRound } from '@lucide/svelte';
+  import AuthBackground from './AuthBackground.svelte';
+  import { Eye, EyeOff, KeyRound, SunMoon } from '@lucide/svelte';
   import logo from '#src/assets/garage-logo.svg';
   let { register = false }: { register?: boolean } = $props();
   let username = $state('');
@@ -28,6 +28,14 @@
       error = (e as Error).message;
     }
   });
+  function toggleTheme() {
+    const dark = document.documentElement.classList.toggle('dark');
+    try {
+      localStorage.setItem('theme', dark ? 'dark' : 'light');
+    } catch {
+      /* Storage may be disabled. */
+    }
+  }
   async function submit(event: SubmitEvent) {
     event.preventDefault();
     if (busy) return;
@@ -51,21 +59,43 @@
   }
 </script>
 
-<main class="grid h-dvh grid-cols-1 overflow-auto md:grid-cols-2">
-  <AuthPreview />
+<main
+  class="auth-shell relative isolate h-dvh overflow-auto bg-background px-6 py-10 text-foreground sm:px-10"
+>
+  <AuthBackground />
+  <div class="absolute right-5 top-5 z-10">
+    <Button
+      variant="ghost"
+      aria-label="Toggle color theme"
+      onclick={toggleTheme}
+    >
+      <SunMoon size={18} />
+    </Button>
+  </div>
   <div
-    class="dark flex items-center justify-center bg-[#0b0f1a] p-6 text-slate-100"
+    class="relative mx-auto flex min-h-full w-full max-w-sm flex-col justify-center py-10"
   >
-    <section class="w-full max-w-sm py-10">
-      <img src={logo} alt="Garage" class="mb-6 h-12 w-12" />
-      <h1 class="page-title">
-        {register ? 'Welcome to Garage' : 'Welcome back'}
-      </h1>
-      <p class="mb-7 mt-2 muted">
-        {register
-          ? 'Create the owner account to get started.'
-          : 'Sign in to your storage console.'}
-      </p>
+    <section aria-labelledby="auth-title" class="w-full">
+      <header class="mb-8 flex flex-col items-center text-center">
+        <div
+          class="garage-logo-tile mb-5 flex h-16 w-16 items-center justify-center rounded-2xl"
+        >
+          <img src={logo} alt="Garage" class="h-12 w-12" />
+        </div>
+        <p
+          class="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground"
+        >
+          Garage Web Console
+        </p>
+        <h1 id="auth-title" class="text-2xl font-semibold tracking-tight">
+          {register ? 'Welcome to Garage' : 'Welcome back'}
+        </h1>
+        <p class="mt-2 text-sm text-muted-foreground">
+          {register
+            ? 'Create the owner account to get started.'
+            : 'Sign in to your storage console.'}
+        </p>
+      </header>
       <form onsubmit={submit} class="space-y-4">
         <label class="block text-sm font-medium">
           Username
@@ -119,8 +149,14 @@
               : 'Sign in'}
         </Button>
       </form>
-      {#if !register && $auth?.oidcEnabled}<a
-          class="mt-4 flex items-center justify-center gap-2 rounded-md border p-2 text-center text-sm font-medium hover:bg-accent"
+      {#if !register && $auth?.oidcEnabled}
+        <div class="my-6 flex items-center gap-4 text-xs text-muted-foreground">
+          <span class="h-px flex-1 bg-border"></span>
+          <span>Or continue with</span>
+          <span class="h-px flex-1 bg-border"></span>
+        </div>
+        <a
+          class="flex min-h-10 items-center justify-center gap-2 rounded-md border bg-card px-3 py-2 text-center text-sm font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           href={API_URL + '/v1/auth/oidc/login'}
         >
           {#if $auth.oidcButtonIconURL}
@@ -136,5 +172,8 @@
           {$auth.oidcButtonText}
         </a>{/if}
     </section>
+    <p class="mt-8 text-center text-xs text-muted-foreground">
+      Your storage. Your infrastructure.
+    </p>
   </div>
 </main>

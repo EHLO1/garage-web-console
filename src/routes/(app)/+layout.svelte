@@ -122,7 +122,11 @@
         href={url('/')}
         class="mb-8 flex items-center gap-3 px-2 py-3 text-lg font-semibold"
       >
-        <img src={logo} alt="" class="h-8 w-8" />
+        <span
+          class="garage-logo-tile flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+        >
+          <img src={logo} alt="" class="h-8 w-8" />
+        </span>
         Garage
       </a>
       <nav aria-label="Main navigation" class="space-y-1">

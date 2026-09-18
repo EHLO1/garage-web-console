@@ -658,3 +658,42 @@ test('OIDC button supports default branding and can be disabled', async ({
   ).toBeVisible();
   await expect(page.locator('a[href$="/auth/oidc/login"]')).toHaveCount(0);
 });
+
+test('login-05 respects both themes and fits mobile screens', async ({
+  page
+}, testInfo) => {
+  await mockAPI(page, '', { authenticated: false });
+  await page.addInitScript(() => localStorage.setItem('theme', 'light'));
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/auth/login');
+  await expect(
+    page.getByRole('heading', { name: 'Welcome back' })
+  ).toBeVisible();
+  await expect(page.locator('html')).not.toHaveClass(/dark/);
+  await expect(page.getByAltText('Garage')).toBeVisible();
+  await page.screenshot({
+    path: testInfo.outputPath('login-light.png'),
+    animations: 'disabled',
+    fullPage: true
+  });
+  await page.getByRole('button', { name: 'Toggle color theme' }).click();
+  await expect(page.locator('html')).toHaveClass(/dark/);
+  await page.screenshot({
+    path: testInfo.outputPath('login-dark.png'),
+    animations: 'disabled',
+    fullPage: true
+  });
+  await page.setViewportSize({ width: 375, height: 667 });
+  await expect(
+    page.getByRole('button', { name: 'Sign in', exact: true })
+  ).toBeInViewport();
+  expect(
+    await page
+      .locator('main')
+      .evaluate((el) => el.scrollWidth <= el.clientWidth)
+  ).toBe(true);
+  await page.screenshot({
+    path: testInfo.outputPath('login-mobile.png'),
+    fullPage: true
+  });
+});
