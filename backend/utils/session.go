@@ -31,3 +31,11 @@ func (s *SessionManager) Set(r *http.Request, key string, value interface{}) {
 func (s *SessionManager) Clear(r *http.Request) error {
 	return s.mgr.Clear(r.Context())
 }
+
+func (s *SessionManager) Remove(r *http.Request, key string) {
+	s.mgr.Remove(r.Context(), key)
+}
+
+func (s *SessionManager) RenewToken(r *http.Request) error {
+	return s.mgr.RenewToken(r.Context())
+}

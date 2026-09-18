@@ -195,11 +195,13 @@ func (c *Auth) GetStatus(w http.ResponseWriter, r *http.Request) {
 	needsSetup := utils.Users.Count() == 0 && utils.GetEnv("AUTH_USER_PASS", "") == ""
 
 	res := map[string]interface{}{
-		"enabled":       true,
-		"needsSetup":    needsSetup,
-		"authenticated": false,
-		"googleEnabled": utils.IsGoogleEnabled(),
-		"user":          nil,
+		"enabled":           true,
+		"needsSetup":        needsSetup,
+		"authenticated":     false,
+		"oidcEnabled":       utils.IsOIDCEnabled(),
+		"oidcButtonText":    utils.OIDCButtonText(),
+		"oidcButtonIconURL": utils.OIDCButtonIconURL(),
+		"user":              nil,
 	}
 
 	if user, ok := utils.GetCurrentUser(r); ok {

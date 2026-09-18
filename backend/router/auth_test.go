@@ -17,8 +17,8 @@ import (
 func TestPasswordAndSessionLifecycle(t *testing.T) {
 	t.Setenv("USERS_PATH", filepath.Join(t.TempDir(), "users.json"))
 	t.Setenv("AUTH_USER_PASS", "")
-	t.Setenv("GOOGLE_CLIENT_ID", "")
-	t.Setenv("GOOGLE_CLIENT_SECRET", "")
+	t.Setenv("OIDC_CLIENT_ID", "")
+	t.Setenv("OIDC_CLIENT_SECRET", "")
 	previousUsers, previousSession := utils.Users, utils.Session
 	t.Cleanup(func() { utils.Users, utils.Session = previousUsers, previousSession })
 	utils.InitUserStore()

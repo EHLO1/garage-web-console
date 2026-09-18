@@ -29,7 +29,7 @@
     { name: 'username', label: 'Username', required: true },
     {
       name: 'email',
-      label: 'Email for Google sign-in',
+      label: 'Email for OIDC sign-in',
       type: 'email' as const
     },
     {

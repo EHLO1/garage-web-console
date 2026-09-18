@@ -13,7 +13,9 @@ export type AuthResponse = {
   enabled: boolean;
   authenticated: boolean;
   needsSetup: boolean;
-  googleEnabled: boolean;
+  oidcEnabled: boolean;
+  oidcButtonText: string;
+  oidcButtonIconURL: string;
   user: AuthUser | null;
 };
 export const auth = writable<AuthResponse | null>(null);

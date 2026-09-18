@@ -2,7 +2,7 @@
 
 ### Login & Dashboard
 
-Password login with an optional **Sign in with Google** button, and the cluster health
+Password login with an optional **Sign in with OIDC** button, and the cluster health
 dashboard. Both light and dark mode are supported.
 
 [![image](img/login-dashboard.png)](img/login-dashboard.png)
@@ -23,7 +23,7 @@ drag-and-drop uploads.
 
 ### User Management
 
-Owner/admin/developer roles, per-developer bucket assignment, and linking an account to Google
+Owner/admin/developer roles, per-developer bucket assignment, and linking an account to OIDC
 sign-in by email.
 
 [![image](img/user-mgt.png)](img/user-mgt.png)

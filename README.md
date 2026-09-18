@@ -26,7 +26,7 @@ A simple admin web UI for [Garage](https://garagehq.deuxfleurs.fr/), a self-host
 - One-time **owner registration** screen on first launch (no users yet)
 - **Developers** are scoped to only the buckets explicitly assigned to them (browse, upload,
   download, delete objects, view their own keys) — no cluster, key, or user management
-- Optional **Google sign-in** (OpenID Connect), deny-by-default: a Google account can only sign in
+- Optional **OIDC sign-in**, deny-by-default: a provider account can only sign in
   if an admin has already created a matching user, with a configurable hosted-domain allowlist
 - Self-service **change password** for any signed-in user
 - **Audit log viewer** (owner/admin only) recording human-readable footprint events — logins,
@@ -52,11 +52,11 @@ A simple admin web UI for [Garage](https://garagehq.deuxfleurs.fr/), a self-host
 
 More in [misc/SCREENSHOTS.md](misc/SCREENSHOTS.md).
 
-|                                                                                                                                                                                      |                                                                                                                                          |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| [![Login and dashboard](misc/img/login-dashboard.png)](misc/img/login-dashboard.png) <br> Login (password + Google sign-in) and the cluster health dashboard, in light and dark mode | [![Cluster and access keys](misc/img/clusters-keys.png)](misc/img/clusters-keys.png) <br> Cluster node details and access key management |
-| [![Bucket and object management](misc/img/object-mgt.png)](misc/img/object-mgt.png) <br> Buckets, multi-select bulk actions, and the background upload progress panel                | [![User management](misc/img/user-mgt.png)](misc/img/user-mgt.png) <br> Managing users, roles, and Google-linked accounts                |
-| [![Audit logs](misc/img/logs.png)](misc/img/logs.png) <br> Searchable, filterable audit log with expandable request details                                                          |                                                                                                                                          |
+|                                                                                                                                                                                    |                                                                                                                                          |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| [![Login and dashboard](misc/img/login-dashboard.png)](misc/img/login-dashboard.png) <br> Login (password + OIDC sign-in) and the cluster health dashboard, in light and dark mode | [![Cluster and access keys](misc/img/clusters-keys.png)](misc/img/clusters-keys.png) <br> Cluster node details and access key management |
+| [![Bucket and object management](misc/img/object-mgt.png)](misc/img/object-mgt.png) <br> Buckets, multi-select bulk actions, and the background upload progress panel              | [![User management](misc/img/user-mgt.png)](misc/img/user-mgt.png) <br> Managing users, roles, and OIDC-linked accounts                  |
+| [![Audit logs](misc/img/logs.png)](misc/img/logs.png) <br> Searchable, filterable audit log with expandable request details                                                        |                                                                                                                                          |
 
 ## Installation
 
@@ -64,7 +64,7 @@ The Garage Web UI is available as a single executable binary and docker image. Y
 
 > **Note on this fork:** this section references `genebit/garage-webui`, the image published from
 > this fork. The upstream `khairul169/garage-webui` image does not include this fork's features
-> (access control, Google sign-in, audit logs, bulk object management, drag-and-drop uploads, or
+> (access control, OIDC sign-in, audit logs, bulk object management, drag-and-drop uploads, or
 > the redesigned UI). You can also build the image yourself from source — see
 > [Development](#development) → [Running the fork locally with Docker](#running-the-fork-locally-with-docker).
 
@@ -200,22 +200,28 @@ However, if it fails to load, you can set `API_BASE_URL` & `API_ADMIN_KEY` envir
 
 Configurable envs:
 
-| Variable                                    | Default                        | Description                                                                                                                                     |
-| ------------------------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CONFIG_PATH`                               | `/etc/garage.toml`             | Path to the Garage `config.toml` file.                                                                                                          |
-| `BASE_PATH`                                 | _(none)_                       | Base path or prefix for the Web UI.                                                                                                             |
-| `API_BASE_URL`                              | _(from config)_                | Garage admin API endpoint URL.                                                                                                                  |
-| `API_ADMIN_KEY`                             | _(from config)_                | Garage admin API key.                                                                                                                           |
-| `S3_REGION`                                 | `garage`                       | S3 region.                                                                                                                                      |
-| `S3_ENDPOINT_URL`                           | _(from config)_                | S3 endpoint URL.                                                                                                                                |
-| `HOST`                                      | `0.0.0.0`                      | Address the server listens on.                                                                                                                  |
-| `PORT`                                      | `3909`                         | Port the server listens on.                                                                                                                     |
-| `AUTH_USER_PASS`                            | _(none)_                       | Legacy single-user login, `username:bcrypt_hash`. Only used while no users are registered — see [Access Control](#access-control-users--roles). |
-| `USERS_PATH`                                | `/data/users.json`             | Where the multi-user account store is persisted.                                                                                                |
-| `LOGS_PATH`                                 | `/data/logs/app.log`           | Where the audit log file is persisted.                                                                                                          |
-| `TMPDIR`                                    | `/data/tmp`                    | Temp directory used while streaming large object uploads to disk.                                                                               |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | _(none)_                       | Enables Google sign-in when both are set — see [Google sign-in](#google-sign-in-optional).                                                      |
-| `GOOGLE_ALLOWED_DOMAINS`                    | `gbox.adnu.edu.ph,adnu.edu.ph` | Comma-separated hosted-domain allowlist for Google sign-in.                                                                                     |
+| Variable                                | Default                        | Description                                                                                                                                     |
+| --------------------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CONFIG_PATH`                           | `/etc/garage.toml`             | Path to the Garage `config.toml` file.                                                                                                          |
+| `BASE_PATH`                             | _(none)_                       | Base path or prefix for the Web UI.                                                                                                             |
+| `API_BASE_URL`                          | _(from config)_                | Garage admin API endpoint URL.                                                                                                                  |
+| `API_ADMIN_KEY`                         | _(from config)_                | Garage admin API key.                                                                                                                           |
+| `S3_REGION`                             | `garage`                       | S3 region.                                                                                                                                      |
+| `S3_ENDPOINT_URL`                       | _(from config)_                | S3 endpoint URL.                                                                                                                                |
+| `HOST`                                  | `0.0.0.0`                      | Address the server listens on.                                                                                                                  |
+| `PORT`                                  | `3909`                         | Port the server listens on.                                                                                                                     |
+| `AUTH_USER_PASS`                        | _(none)_                       | Legacy single-user login, `username:bcrypt_hash`. Only used while no users are registered — see [Access Control](#access-control-users--roles). |
+| `USERS_PATH`                            | `/data/users.json`             | Where the multi-user account store is persisted.                                                                                                |
+| `LOGS_PATH`                             | `/data/logs/app.log`           | Where the audit log file is persisted.                                                                                                          |
+| `TMPDIR`                                | `/data/tmp`                    | Temp directory used while streaming large object uploads to disk.                                                                               |
+| `OIDC_ISSUER`                           | _(none)_                       | Provider's exact issuer URL; enables OIDC together with client ID and redirect URL.                                                             |
+| `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` | _(none)_                       | Registered client credentials; omit the secret only for a public client.                                                                        |
+| `OIDC_REDIRECT_URL`                     | _(none)_                       | Exact public callback URL, including any `BASE_PATH`.                                                                                           |
+| `OIDC_SCOPES`                           | `email profile`                | Space- or comma-separated scopes; `openid` is always included.                                                                                  |
+| `OIDC_ALLOWED_DOMAINS`                  | _(unrestricted)_               | Optional comma-separated email-domain allowlist; existing local account still required.                                                         |
+| `OIDC_REQUIRE_VERIFIED_EMAIL`           | `true`                         | Require a verified email claim. See the provider trust requirements below before disabling.                                                     |
+| `OIDC_BUTTON_TEXT`                      | `Continue with OpenID Connect` | Login button label, rendered as plain text.                                                                                                     |
+| `OIDC_BUTTON_ICON_URL`                  | _(built-in key icon)_          | HTTPS image URL or root-relative image path, including `BASE_PATH` where applicable.                                                            |
 
 `USERS_PATH`, `LOGS_PATH`, and `TMPDIR` all default under `/data`, so make sure that directory is a
 writable, persistent volume (see the `webui-data` volume in the Docker Compose example above).
@@ -272,30 +278,94 @@ The legacy `AUTH_USER_PASS` variable still works as a single-owner fallback, but
 only while the user store is empty. Once any user is registered, the user store
 takes over.
 
-#### Google sign-in (optional)
+#### OIDC sign-in (optional)
 
-Users can also sign in with Google (OpenID Connect). Sign-in is **deny by
-default**: a Google account can only sign in if an admin has already created a
-user with that email address — no self-service provisioning. Password login
-remains available as a break-glass method.
+Configure one OpenID Connect provider using discovery. The Go backend handles the
+Authorization Code flow with PKCE (S256); tokens and client secrets stay out of
+the SPA. Password sign-in remains available. Discovery failures can be retried
+without restarting the application.
 
-Configure it with these environment variables on the `webui` service:
+Sign-in requires an existing local user with a matching email address. Create the
+owner account first, then use **Users** to set its email or add more users. Passwords
+can be left blank when creating OIDC-only users. Local roles and bucket assignments
+remain authoritative; provider groups do not automatically grant access or create users.
+Email matching is case-insensitive and requires `email_verified: true` by default.
+The backend checks signed ID tokens and falls back to UserInfo when email or its
+verification claim is missing, requiring the UserInfo subject to match the ID token.
 
-- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — an OAuth 2.0 Client ID created in
-  the Google Cloud console (APIs & Services → Credentials).
-- `GOOGLE_ALLOWED_DOMAINS` — comma-separated hosted-domain allowlist
-  (default `gbox.adnu.edu.ph,adnu.edu.ph`). Only verified emails in these
-  domains are accepted; this is enforced server-side on the ID token.
+For Pocket ID, create an OIDC client, enable PKCE, and register this callback:
+`https://console.example.com/api/v1/auth/oidc/callback`. Then configure the backend:
 
-In the Google console, add your app's origin(s) and register the redirect URI
-`<origin>/api/v1/auth/google/callback` for each origin (e.g.
-`http://localhost:3909/api/v1/auth/google/callback`). The callback URL is
-derived from the incoming request (honoring `X-Forwarded-Proto`/`Host`), so a
-single deployment works across localhost and a proxied production domain.
+```dotenv
+OIDC_ISSUER=https://id.example.com
+OIDC_CLIENT_ID=your-client-id
+OIDC_CLIENT_SECRET=your-client-secret
+OIDC_REDIRECT_URL=https://console.example.com/api/v1/auth/oidc/callback
+OIDC_BUTTON_TEXT=Sign in with Pocket ID
+# Optional: use an image you host, or omit for the built-in key icon.
+OIDC_BUTTON_ICON_URL=https://id.example.com/your-logo.png
+# Optional extra restriction:
+# OIDC_ALLOWED_DOMAINS=example.com
+```
 
-To let a Google user in: create a user in the **Users** page and set their
-**Email** to their Google address (the password can be left blank for
-Google-only accounts). Assign their role and, for developers, their buckets.
+Use the exact issuer reported by the provider's discovery document, including a
+trailing slash when present. HTTPS is required except for loopback development.
+For `BASE_PATH=/console`, register and configure
+`https://example.com/console/api/v1/auth/oidc/callback`. The configured URL is used
+verbatim; request Host and forwarding headers cannot change it. Restart after
+changing environment variables. Missing or invalid required configuration hides
+the OIDC button.
+
+Pocket ID must mark the user's email as verified. Its [email verification setup
+example](https://pocket-id.org/docs/client-examples/yuvomi) describes enabling
+**Emails Verified** and verifying individual users. Keep verification enabled here.
+
+These provider configurations use the same generic flow (live deployments of each
+provider are not part of the automated test suite):
+
+| Provider                                                                                           | Issuer / setup notes                                                                                                                                                                |
+| -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pocket ID                                                                                          | Instance URL, e.g. `https://id.example.com`; enable PKCE and verified emails.                                                                                                       |
+| [Keycloak](https://www.keycloak.org/securing-apps/oidc-layers)                                     | `https://id.example.com/realms/<realm>`; enable Standard Flow and email verification.                                                                                               |
+| [Authentik](https://docs.goauthentik.io/add-secure-apps/providers/oauth2)                          | `https://id.example.com/application/o/<slug>/`; use per-provider issuer mode and email/profile scope mappings. Global issuer mode is not supported by this discovery configuration. |
+| [Auth0](https://auth0.com/docs/authenticate/identity-providers/enterprise-identity-providers/oidc) | Exact tenant/custom-domain issuer, commonly `https://<tenant>.us.auth0.com/`; register a Regular Web Application.                                                                   |
+| [Okta](https://developer.okta.com/docs/concepts/auth-servers/)                                     | Org issuer or configured authorization-server issuer, e.g. `https://<org>.okta.com/oauth2/default`; register an OIDC web client.                                                    |
+| [Google](https://developers.google.com/identity/openid-connect/reference)                          | `https://accounts.google.com`; register an OAuth web client.                                                                                                                        |
+| [Microsoft Entra ID](https://learn.microsoft.com/en-us/entra/identity-platform/v2-protocols-oidc)  | `https://login.microsoftonline.com/<tenant-GUID>/v2.0`; use a specific tenant, not `common` or `organizations`, and configure an email claim. See below.                            |
+
+Use a confidential web client with a secret when supported. Public clients with
+PKCE are also supported. Client-secret basic/post authentication is handled by
+`golang.org/x/oauth2`; private-key JWT and mutual-TLS client authentication are not
+implemented. Providers must support discovery and authorization-code callbacks
+using query parameters.
+
+Some enterprise providers do not emit `email_verified`. Prefer configuring that
+claim correctly. `OIDC_REQUIRE_VERIFIED_EMAIL=false` explicitly trusts the configured
+provider's email claims, including unverified addresses. Only use this with a tightly
+controlled provider where users cannot choose another person's email; otherwise they
+could access that person's existing local account. An email-domain allowlist does not
+prove tenant membership or email ownership. Entra deployments need particular care
+because [email is not a stable identity identifier](https://learn.microsoft.com/en-us/entra/identity-platform/id-token-claims-reference).
+
+This preserves the existing email-based account matching model; it does not bind
+accounts permanently to an issuer/subject pair. Logout ends the local console
+session, not the provider session. The authorization transaction expires after ten
+minutes and its state/nonce/PKCE verifier are consumed on callback.
+
+Button icons are loaded as images (PNG, SVG, etc.), never injected as HTML. Use an
+HTTPS URL or a root-relative path served by your deployment. Relative paths must
+include any deployment prefix, for example `/console/favicon-32x32.png`. Unset or
+invalid icon URLs use the built-in key icon; the label has a default too. These
+settings are delivered by the backend and require no frontend rebuild.
+
+**Migrating from Google-specific configuration:** replace `GOOGLE_CLIENT_ID` and
+`GOOGLE_CLIENT_SECRET` with their `OIDC_` counterparts, set
+`OIDC_ISSUER=https://accounts.google.com`, and configure `OIDC_REDIRECT_URL` with the
+new `/api/v1/auth/oidc/callback` route. Update the registered redirect URI at Google.
+To retain email-domain restrictions, explicitly set `OIDC_ALLOWED_DOMAINS`; the old
+institution-specific defaults and Google `hd` fallback are removed. Old `GOOGLE_*`
+variables and `/auth/google/*` routes are no longer used. Existing users need no
+migration. Set `OIDC_BUTTON_TEXT=Continue with Google` to keep the familiar label.
 
 ### Object management
 
@@ -317,7 +387,7 @@ keep navigating the app while an upload is in flight.
 
 Owners and admins have access to a **Logs** page in the sidebar, showing a searchable,
 filterable, paginated view of application audit events — logins and failed login attempts,
-registrations, password changes, Google sign-in denials, user account changes, and object
+registrations, password changes, OIDC sign-in denials, user account changes, and object
 uploads/deletes/moves. Each entry is collapsible to reveal footprint details (IP address, user
 agent, acting user/role, and action-specific fields like the bucket/key involved).
 

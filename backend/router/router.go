@@ -16,9 +16,9 @@ func HandleApiRouter() *http.ServeMux {
 	mux.HandleFunc("POST /auth/change-password", auth.ChangePassword)
 	mux.HandleFunc("GET /auth/status", auth.GetStatus)
 
-	google := &Google{}
-	mux.HandleFunc("GET /v1/auth/google/login", google.Login)
-	mux.HandleFunc("GET /v1/auth/google/callback", google.Callback)
+	oidc := &OIDC{}
+	mux.HandleFunc("GET /v1/auth/oidc/login", oidc.Login)
+	mux.HandleFunc("GET /v1/auth/oidc/callback", oidc.Callback)
 
 	router := http.NewServeMux()
 

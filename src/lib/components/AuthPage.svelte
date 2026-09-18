@@ -7,7 +7,7 @@
   import { url } from '#lib/utils.ts';
   import Button from './Button.svelte';
   import AuthPreview from './AuthPreview.svelte';
-  import { Eye, EyeOff } from '@lucide/svelte';
+  import { Eye, EyeOff, KeyRound } from '@lucide/svelte';
   import logo from '#src/assets/garage-logo.svg';
   let { register = false }: { register?: boolean } = $props();
   let username = $state('');
@@ -119,11 +119,21 @@
               : 'Sign in'}
         </Button>
       </form>
-      {#if !register && $auth?.googleEnabled}<a
-          class="mt-4 block rounded-md border p-2 text-center text-sm font-medium hover:bg-accent"
-          href={API_URL + '/v1/auth/google/login'}
+      {#if !register && $auth?.oidcEnabled}<a
+          class="mt-4 flex items-center justify-center gap-2 rounded-md border p-2 text-center text-sm font-medium hover:bg-accent"
+          href={API_URL + '/v1/auth/oidc/login'}
         >
-          Continue with Google
+          {#if $auth.oidcButtonIconURL}
+            <img
+              src={$auth.oidcButtonIconURL}
+              alt=""
+              class="h-5 w-5 object-contain"
+              referrerpolicy="no-referrer"
+            />
+          {:else}
+            <KeyRound size={20} aria-hidden="true" />
+          {/if}
+          {$auth.oidcButtonText}
         </a>{/if}
     </section>
   </div>

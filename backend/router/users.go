@@ -15,7 +15,7 @@ import (
 )
 
 // hashPasswordOrRandom hashes the given password, or a random secret when empty
-// so Google-only accounts have no usable password to sign in with.
+// so OIDC-only accounts have no usable password to sign in with.
 func hashPasswordOrRandom(password string) (string, error) {
 	if password == "" {
 		b := make([]byte, 32)
@@ -75,7 +75,7 @@ func (c *Users) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	// A user needs at least one way to sign in.
 	if body.Password == "" && email == "" {
-		utils.ResponseErrorStatus(w, errors.New("provide a password or an email for Google sign-in"), http.StatusBadRequest)
+		utils.ResponseErrorStatus(w, errors.New("provide a password or an email for OIDC sign-in"), http.StatusBadRequest)
 		return
 	}
 	if body.Password != "" && len(body.Password) < 6 {

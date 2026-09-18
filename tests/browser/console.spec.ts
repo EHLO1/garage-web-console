@@ -4,7 +4,14 @@ type Call = { path: string; method: string; body: any; query: URLSearchParams };
 async function mockAPI(
   page: Page,
   base = '',
-  options: { role?: string; authenticated?: boolean; setup?: boolean } = {}
+  options: {
+    role?: string;
+    authenticated?: boolean;
+    setup?: boolean;
+    oidcEnabled?: boolean;
+    oidcButtonText?: string;
+    oidcButtonIconURL?: string;
+  } = {}
 ) {
   const calls: Call[] = [];
   let authenticated = options.authenticated ?? true;
@@ -71,7 +78,9 @@ async function mockAPI(
         enabled: true,
         authenticated,
         needsSetup: setup,
-        googleEnabled: true,
+        oidcEnabled: options.oidcEnabled ?? true,
+        oidcButtonText: options.oidcButtonText ?? 'Sign in with Pocket ID',
+        oidcButtonIconURL: options.oidcButtonIconURL ?? '/favicon-32x32.png',
         user: authenticated ? user : null
       };
     else if (path === '/auth/login') {
@@ -244,15 +253,18 @@ for (const base of ['', '/console', '/tools/garage']) {
   });
 }
 
-test('login errors, Google link, password changes, and logout', async ({
+test('login errors, custom OIDC button, password changes, and logout', async ({
   page
 }) => {
   const { calls } = await mockAPI(page, '/console', { authenticated: false });
   await page.goto('/console/buckets');
   await expect(page).toHaveURL(/\/console\/auth\/login$/);
   await expect(
-    page.getByRole('link', { name: 'Continue with Google' })
-  ).toHaveAttribute('href', '/console/api/v1/auth/google/login');
+    page.getByRole('link', { name: 'Sign in with Pocket ID' })
+  ).toHaveAttribute('href', '/console/api/v1/auth/oidc/login');
+  await expect(
+    page.getByRole('link', { name: 'Sign in with Pocket ID' }).locator('img')
+  ).toHaveAttribute('src', '/favicon-32x32.png');
   await page.getByLabel('Username').fill('joseph');
   await page.getByLabel('Password', { exact: true }).fill('wrong');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
@@ -621,4 +633,28 @@ test('desktop and mobile navigation, persisted themes, and dialog keyboard suppo
     path: testInfo.outputPath('login-desktop.png'),
     fullPage: true
   });
+});
+
+test('OIDC button supports default branding and can be disabled', async ({
+  page
+}) => {
+  await mockAPI(page, '', {
+    authenticated: false,
+    oidcButtonText: 'Continue with OpenID Connect',
+    oidcButtonIconURL: ''
+  });
+  await page.goto('/auth/login');
+  const button = page.getByRole('link', {
+    name: 'Continue with OpenID Connect'
+  });
+  await expect(button).toBeVisible();
+  await expect(button.locator('svg')).toBeVisible();
+  await expect(button.locator('img')).toHaveCount(0);
+  await page.unrouteAll();
+  await mockAPI(page, '', { authenticated: false, oidcEnabled: false });
+  await page.reload();
+  await expect(
+    page.getByRole('button', { name: 'Sign in', exact: true })
+  ).toBeVisible();
+  await expect(page.locator('a[href$="/auth/oidc/login"]')).toHaveCount(0);
 });
