@@ -73,9 +73,9 @@
     </Button>
   </div>
   <div
-    class="relative mx-auto flex min-h-full w-full max-w-sm flex-col justify-center py-10"
+    class="relative mx-auto flex min-h-full w-full max-w-md flex-col justify-center py-10"
   >
-    <section aria-labelledby="auth-title" class="w-full">
+    <section aria-labelledby="auth-title" class="auth-panel w-full">
       <header class="mb-8 flex flex-col items-center text-center">
         <div
           class="garage-logo-tile mb-5 flex h-16 w-16 items-center justify-center rounded-2xl"

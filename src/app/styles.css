@@ -127,7 +127,7 @@
   border: 1px solid #e9dfd0;
 }
 
-/* Low-contrast, hard-edged geometry fades before it reaches the form. */
+/* Continuous facets sit behind the translucent login panel. */
 .auth-facets {
   position: fixed;
   inset: 0;
@@ -135,15 +135,6 @@
   height: 100%;
   z-index: -1;
   pointer-events: none;
-  mask-image: linear-gradient(
-    to right,
-    black,
-    black 12%,
-    transparent 37%,
-    transparent 63%,
-    black 88%,
-    black
-  );
 }
 
 .facet-surfaces path {
@@ -179,12 +170,28 @@
     width: 180%;
     left: -40%;
     opacity: 0.6;
-    mask-image: linear-gradient(
-      to bottom,
-      black,
-      transparent 30%,
-      transparent 75%,
-      black
-    );
+  }
+}
+
+.auth-panel {
+  padding: 2rem;
+  border: 1px solid hsl(30 12% 75% / 0.45);
+  border-radius: 1.25rem;
+  background: hsl(40 25% 99% / 0.82);
+  box-shadow:
+    0 24px 70px -20px hsl(24 20% 20% / 0.2),
+    0 4px 16px hsl(24 20% 20% / 0.04);
+  backdrop-filter: blur(12px);
+}
+.dark .auth-panel {
+  background: hsl(0 0% 3% / 0.72);
+  border-color: hsl(30 12% 70% / 0.14);
+  box-shadow:
+    0 28px 80px -16px hsl(0 0% 0% / 0.65),
+    0 4px 20px hsl(0 0% 0% / 0.25);
+}
+@media (max-width: 640px) {
+  .auth-panel {
+    padding: 1.5rem;
   }
 }

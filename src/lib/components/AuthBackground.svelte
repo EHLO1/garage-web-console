@@ -1,4 +1,4 @@
-<!-- Static facets frame the form; the center mask keeps controls visually quiet. -->
+<!-- Static, continuous facets sit behind the translucent form panel. -->
 <svg
   class="auth-facets"
   viewBox="0 0 1440 1000"
@@ -7,6 +7,11 @@
   focusable="false"
 >
   <g class="facet-surfaces">
+    <path d="M760 0L520 280 1010 240Z" />
+    <path d="M520 280L1010 240 1190 500 740 560Z" />
+    <path d="M180 520L520 280 740 560 470 710Z" />
+    <path d="M740 560L1190 500 980 700 800 1000Z" />
+    <path d="M470 710L740 560 800 1000H580Z" />
     <path d="M0 0H390L260 170Z" />
     <path d="M0 0L260 170 0 330Z" />
     <path d="M390 0H760L520 280 260 170Z" />
@@ -27,6 +32,10 @@
     <path d="M1440 780V1000H1120L1240 830Z" />
     <path d="M980 700L1240 830 1120 1000H800Z" />
   </g>
+  <path
+    class="facet-seams"
+    d="M520 280L1010 240M520 280L740 560 1190 500M470 710L740 560 800 1000"
+  />
   <path
     class="facet-seams"
     d="M0 0L260 170 390 0M0 330L260 170 520 280 760 0 1010 240 1150 0M0 330L180 520 260 170M0 760L180 520 520 280M0 1000L120 850 180 520 470 710 580 1000M0 760L120 850 300 1000M120 850L470 710M1010 240L1300 180 1440 0M1010 240L1190 500 1300 180 1440 420 1190 500 1440 780 1240 830 1120 1000M1190 500L980 700 1240 830M980 700L800 1000"
